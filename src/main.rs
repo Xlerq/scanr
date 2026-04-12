@@ -47,14 +47,16 @@ fn main()
     else {start};
 
     if !check_ports(&start, &end) {return;}
-
-    println!("Ip: {ip}");
-    println!("Start: {start}");
-    println!("End: {end}");
-
-    if !scan_port(ip, start)
+    
+    let mut open_count: u16 = u16::MIN;
+    for i in start..=end
     {
-        println!("Port zamkniety");
+        if scan_port(ip, i)
+        {
+            println!("{i} is open");
+            open_count += 1;
+        }
     }
-    else {println!("Port otwarty")}
+
+    if open_count == 0 {println!("Did not found any open ports")}
 }
