@@ -1,4 +1,5 @@
-use std::env;
+use std::{env, net::TcpStream};
+
 
 fn check_len(v: &[String]) -> bool
 {
@@ -25,6 +26,11 @@ fn check_ports(s: &u16, e: &u16) -> bool
     else {true}
 }
 
+fn scan_port(ip: &str, port: u16) -> bool
+{
+    TcpStream::connect((ip, port)).is_ok()
+}
+
 fn main()
 {
     let args: Vec<String> = env::args().collect();
@@ -44,5 +50,11 @@ fn main()
 
     println!("Ip: {ip}");
     println!("Start: {start}");
-    println!("End: {end}")
+    println!("End: {end}");
+
+    if !scan_port(ip, start)
+    {
+        println!("Port zamkniety");
+    }
+    else {println!("Port otwarty")}
 }
