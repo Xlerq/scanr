@@ -38,11 +38,27 @@ fn main()
     if !check_len(&args) {return;}
 
     let ip: &str = &args[1];
-    let start: u16 = args[2].parse().unwrap();
-
+    let start: u16 = match args[2].parse()
+    {
+        Ok(port) => port,
+        Err(_) =>
+        {
+            eprintln!("Error: start port must be a number");
+            return;
+        }
+    };
+    
     let end: u16 = if args.len() == 4
     {
-        args[3].parse().unwrap()
+        match args[3].parse()
+        {
+            Ok(port) => port,
+            Err(_) =>
+            {
+                eprintln!("Error: start port must be a number");
+                return;
+            }
+        }
     }
     else {start};
 
@@ -58,5 +74,5 @@ fn main()
         }
     }
 
-    if open_count == 0 {println!("Did not found any open ports")}
+    if open_count == 0 {println!("No open ports found")}
 }
