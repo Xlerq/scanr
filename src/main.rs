@@ -37,7 +37,7 @@ fn check_and_parse_ip(ip: &str) -> Option<IpAddr>
         Ok(addr) => Some(addr),
         Err(_) =>
         {
-            eprintln!("Error: invalid socket address");
+            eprintln!("Error: invalid IP address");
             None
         }
     }
@@ -105,7 +105,7 @@ fn main()
 
     if !check_ports(&start, &end) {return;}
     
-    let mut open_count: u16 = u16::MIN;
+    let mut open_count: usize = usize::MIN;
     let timer: Instant = Instant::now();
 
     for i in start..=end
@@ -122,6 +122,8 @@ fn main()
 
     if open_count == 0 {println!("No open ports found")};
 
-    println!("Elapsed: {} s", elapsed.as_secs_f32());
-    
+    println!("Target: {ip}
+    Scanned ports: {start}-{end}
+    Open ports found: {open_count} 
+    Elapsed: {}s", elapsed.as_secs_f32());
 }
