@@ -4,6 +4,17 @@ use std::{
     time::{Duration, Instant},
 };
 
+struct Config {
+    ip: IpAddr,
+    start: u16,
+    end: u16,
+}
+
+struct ScanSummary {
+    open_ports: Vec<u16>,
+    elapsed: Duration,
+}
+
 fn main() {
     match run() {
         Ok(()) => (),
@@ -13,9 +24,17 @@ fn main() {
 
 fn run() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
+    let config: Config = parse_args(&args)?;
 
-    check_len(&args)?;
+    let summary: ScanSummary = scan_range(&config);
 
+    print_summary(&summary, &config);
+
+    Ok(())
+}
+
+fn parse_args(args: &[String]) -> Result<Config, String> {
+    check_len(args)?;
     let ip: IpAddr = check_and_parse_ip(&args[1])?;
     let start: u16 = parse_port(&args[2], "start")?;
     let end: u16 = if args.len() == 4 {
@@ -25,14 +44,9 @@ fn run() -> Result<(), String> {
     };
 
     check_ports(&start, &end)?;
-    let timer: Instant = Instant::now();
 
-    let open_ports: Vec<u16> = scan_range(ip, start, end);
-
-    let elapsed: Duration = timer.elapsed();
-    print_summary(&open_ports, &elapsed, &ip, &start, &end);
-
-    Ok(())
+    let config: Config = Config { ip, start, end };
+    Ok(config)
 }
 
 fn check_len(v: &[String]) -> Result<(), String> {
@@ -61,7 +75,7 @@ fn parse_port(text: &str, field: &str) -> Result<u16, String> {
 
 fn check_ports(s: &u16, e: &u16) -> Result<(), String> {
     if s > e {
-        Err("Error: Start port cannot be greater than end_port".to_string())
+        Err("Error: start_port cannot be greater than end_port".to_string())
     } else {
         Ok(())
     }
@@ -72,43 +86,46 @@ fn scan_port(ip_port: &SocketAddr) -> bool {
     TcpStream::connect_timeout(ip_port, timeout).is_ok()
 }
 
-fn scan_range(ip: IpAddr, start: u16, end: u16) -> Vec<u16> {
+fn scan_range(config: &Config) -> ScanSummary {
+    let timer: Instant = Instant::now();
     let mut open_ports: Vec<u16> = Vec::new();
-    for i in start..=end {
-        let ip_port: SocketAddr = SocketAddr::new(ip, i);
+
+    for i in config.start..=config.end {
+        let ip_port: SocketAddr = SocketAddr::new(config.ip, i);
         if scan_port(&ip_port) {
             open_ports.push(i);
         }
     }
-    open_ports
+
+    let elapsed: Duration = timer.elapsed();
+
+    let summary: ScanSummary = ScanSummary {
+        open_ports,
+        elapsed,
+    };
+    summary
 }
 
-fn print_summary(
-    open_ports: &Vec<u16>,
-    elapsed_time: &Duration,
-    ip: &IpAddr,
-    start: &u16,
-    end: &u16,
-) {
-    if open_ports.is_empty() {
+fn print_summary(summary: &ScanSummary, config: &Config) {
+    if summary.open_ports.is_empty() {
         print!("No open ports found");
     } else {
         println!("Open ports");
         println!("=============");
 
-        for open in open_ports {
+        for open in summary.open_ports.iter() {
             print!("{open} ");
         }
     }
 
     println!("\n=============");
-    println!("Ip: {ip}");
+    println!("Ip: {}", config.ip);
 
-    if start != end {
-        println!("Scan range: {start} - {end}");
+    if config.start != config.end {
+        println!("Scan range: {} - {}", config.start, config.end);
     } else {
-        println!("Scan port: {start}");
+        println!("Scan port: {}", config.start);
     }
 
-    println!("Elapsed: {} s", elapsed_time.as_secs_f32());
+    println!("Elapsed: {} s", summary.elapsed.as_secs_f32());
 }
