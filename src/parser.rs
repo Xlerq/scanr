@@ -4,7 +4,7 @@ use crate::models::Config;
 
 pub fn parse_args(args: &[String]) -> Result<Config, String> {
     check_len(args)?;
-    let ip: IpAddr = check_and_parse_ip(&args[1])?;
+    let ip: IpAddr = parse_ip(&args[1])?;
     let start: u16 = parse_port(&args[2], "start")?;
     let end: u16 = if args.len() == 4 {
         parse_port(&args[3], "end")?
@@ -13,6 +13,7 @@ pub fn parse_args(args: &[String]) -> Result<Config, String> {
     };
 
     check_ports(&start, &end)?;
+    check_max_port(&start, &end)?;
 
     let config: Config = Config { ip, start, end };
     Ok(config)
@@ -29,7 +30,7 @@ fn check_len(v: &[String]) -> Result<(), String> {
     }
 }
 
-fn check_and_parse_ip(ip: &str) -> Result<IpAddr, String> {
+fn parse_ip(ip: &str) -> Result<IpAddr, String> {
     match ip.parse::<IpAddr>() {
         Ok(addr) => Ok(addr),
         Err(_) => Err("Error: invalid IP address".to_string()),
@@ -46,6 +47,15 @@ fn parse_port(text: &str, field: &str) -> Result<u16, String> {
 fn check_ports(s: &u16, e: &u16) -> Result<(), String> {
     if s > e {
         Err("Error: start_port cannot be greater than end_port".to_string())
+    } else {
+        Ok(())
+    }
+}
+
+fn check_max_port(s: &u16, e: &u16) -> Result<(), String> {
+    let max_port: u16 = 65000;
+    if s >= &max_port || e >= &max_port {
+        Err("Error: max port is 65000".to_string())
     } else {
         Ok(())
     }
@@ -93,9 +103,21 @@ mod tests {
 
     #[test]
     fn rejects_invalid_ip() {
-        match check_and_parse_ip("19c.168.0.10.") {
+        match parse_ip("19c.168.0.10.") {
             Ok(_) => panic!("parser should reject invalid IP address"),
             Err(err) => assert_eq!(err, "Error: invalid IP address"),
         };
+    }
+
+    #[test]
+    fn rejects_when_max_port_reached() {
+        let args = make_args(&["scanr", "127.0.0.1", "64999", "65001"]);
+
+        let result = parse_args(&args);
+
+        match result {
+            Ok(_) => panic!("parser should reject port above 65000"),
+            Err(err) => assert_eq!(err, "Error: max port is 65000"),
+        }
     }
 }
