@@ -50,3 +50,52 @@ fn check_ports(s: &u16, e: &u16) -> Result<(), String> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_args(args: &[&str]) -> Vec<String> {
+        args.iter().map(|arg| arg.to_string()).collect()
+    }
+
+    #[test]
+    fn parses_valid_ip_and_range() {
+        let args = make_args(&["scanr", "127.0.0.1", "20", "25"]);
+
+        let config = parse_args(&args).expect("parser should accept valid arguments");
+
+        assert_eq!(config.ip.to_string(), "127.0.0.1");
+        assert_eq!(config.start, 20);
+        assert_eq!(config.end, 25);
+    }
+
+    #[test]
+    fn rejects_when_start_is_greater_than_end() {
+        let args = make_args(&["scanr", "127.0.0.1", "100", "20"]);
+
+        let result = parse_args(&args);
+
+        match result {
+            Ok(_) => panic!("parser should reject reversed port range"),
+            Err(err) => assert_eq!(err, "Error: start_port cannot be greater than end_port"),
+        }
+    }
+
+    #[test]
+    fn parses_valid_single_port() {
+        let args = make_args(&["scanr", "127.0.0.1", "67"]);
+
+        let config = parse_args(&args).expect("parser should output valid single port");
+        assert_eq!(config.start, 67);
+        assert_eq!(config.end, 67);
+    }
+
+    #[test]
+    fn rejects_invalid_ip() {
+        match check_and_parse_ip("19c.168.0.10.") {
+            Ok(_) => panic!("parser should reject invalid IP address"),
+            Err(err) => assert_eq!(err, "Error: invalid IP address"),
+        };
+    }
+}
