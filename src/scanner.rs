@@ -1,12 +1,12 @@
+use std::cmp::min;
 use std::net::{IpAddr, SocketAddr, TcpStream};
-use std::thread;
+use std::thread::{self, available_parallelism};
 use std::time::{Duration, Instant};
 
 use crate::models::{Config, ScanSummary};
 
 pub fn scan_range(config: &Config) -> ScanSummary {
     let timer: Instant = Instant::now();
-    const THREAD_COUNT: u16 = 256;
 
     let mut handles = Vec::new();
     let mut open_ports: Vec<u16> = Vec::new();
@@ -16,7 +16,7 @@ pub fn scan_range(config: &Config) -> ScanSummary {
     let end: u16 = config.end;
 
     let total_ports = end - start + 1;
-    let real_thread_count = total_ports.min(THREAD_COUNT);
+    let real_thread_count = choose_thread_count(total_ports);
     let chunk_len: u16 = total_ports.div_ceil(real_thread_count);
 
     for i in 0..real_thread_count {
@@ -42,6 +42,11 @@ pub fn scan_range(config: &Config) -> ScanSummary {
         open_ports,
         elapsed,
     }
+}
+
+fn choose_thread_count(total_ports: u16) -> u16 {
+    let cpu_count: usize = available_parallelism().map(|n| n.get()).unwrap_or(4);
+    min(total_ports, cpu_count as u16 * 16)
 }
 
 fn scan_port(ip_port: &SocketAddr) -> bool {
