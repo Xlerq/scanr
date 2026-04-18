@@ -16,11 +16,17 @@ scanr 127.0.0.1 80
 ```
 ## Capabilities
 
-Scanner is able to scan 1k ports below 1s.
-![Scan 1k](./assets/1000_ports.png)
-10k ports in 8s.
-![Scan 10k](./assets/10000_ports.png)
+Scanner is able to scan 1k ports below 1 second.
 
+<p align="center">
+  <img src="./assets/1000_ports.png" alt="Scan of 1000 ports" width="85%">
+</p>
+
+Scanner is able to scan 10k ports in about 8 seconds.
+
+<p align="center">
+  <img src="./assets/10000_ports.png" alt="Scan of 10000 ports" width="85%">
+</p>
 
 ## Build
 
