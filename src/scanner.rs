@@ -15,18 +15,9 @@ pub fn scan_range(config: &Config) -> ScanSummary {
     let start: u16 = config.start;
     let end: u16 = config.end;
 
-    let total_ports = end - start + 1;
-    let real_thread_count = choose_thread_count(total_ports);
-    let chunk_len: u16 = total_ports.div_ceil(real_thread_count);
+    let chunks: Vec<(u16, u16)> = create_chunks(start, end);
 
-    for i in 0..real_thread_count {
-        let chunk_start = start + (chunk_len * i);
-        let chunk_end = (chunk_start + chunk_len - 1).min(end);
-
-        if chunk_start > end {
-            break;
-        }
-
+    for (chunk_start, chunk_end) in chunks {
         let handle = thread::spawn(move || scan_chunk(ip, chunk_start, chunk_end));
         handles.push(handle);
     }
@@ -42,6 +33,28 @@ pub fn scan_range(config: &Config) -> ScanSummary {
         open_ports,
         elapsed,
     }
+}
+
+fn create_chunks(start: u16, end: u16) -> Vec<(u16, u16)> {
+    let mut chunks: Vec<(u16, u16)> = Vec::new();
+
+    let total_ports = end - start + 1;
+    let real_thread_count = choose_thread_count(total_ports);
+    let chunk_len: u16 = total_ports.div_ceil(real_thread_count);
+
+    for i in 0..real_thread_count {
+        let chunk_start = start + (chunk_len * i);
+        let chunk_end = (chunk_start + chunk_len - 1).min(end);
+
+        if chunk_start > end {
+            break;
+        }
+
+        chunks.push((chunk_start, chunk_end));
+    }
+
+    println!("{:?}", chunks);
+    chunks
 }
 
 fn choose_thread_count(total_ports: u16) -> u16 {
@@ -64,4 +77,59 @@ fn scan_chunk(ip: IpAddr, start: u16, end: u16) -> Vec<u16> {
         }
     }
     open_ports
+}
+
+#[cfg(test)]
+mod tests {
+    use std::net::TcpListener;
+
+    use super::*;
+
+    #[test]
+    fn returns_true_when_port_is_open() {
+        let timeout: Duration = Duration::from_millis(500);
+        let listener: TcpListener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let ip_port: SocketAddr = listener.local_addr().unwrap();
+
+        let is_open: bool = TcpStream::connect_timeout(&ip_port, timeout).is_ok();
+        assert!(is_open);
+    }
+
+    #[test]
+    fn number_of_thread() {
+        let total_ports: u16 = 3;
+        let thread_count: u16 = choose_thread_count(total_ports);
+
+        assert_eq!(total_ports, thread_count);
+    }
+
+    #[test]
+    fn number_of_thread2() {
+        let total_ports: u16 = 60000;
+        let thread_count: u16 = choose_thread_count(total_ports);
+
+        assert!(thread_count < total_ports);
+    }
+
+    #[test]
+    fn splits_range_into_valid_chunks() {
+        let chunks: Vec<(u16, u16)> = create_chunks(1, 5);
+
+        assert_eq!(chunks, [(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)]);
+    }
+
+    #[test]
+    fn creates_chunks_that_cover_entire_range() {
+        let chunks: Vec<(u16, u16)> = create_chunks(100, 10000);
+        assert!(!chunks.is_empty());
+
+        let first_chunk: (u16, u16) = chunks[0];
+        let last_chunk: (u16, u16) = chunks[chunks.len() - 1];
+
+        let (first_start, _) = first_chunk;
+        let (_, last_end) = last_chunk;
+
+        assert_eq!(first_start, 100);
+        assert_eq!(last_end, 10000);
+    }
 }
