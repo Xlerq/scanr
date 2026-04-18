@@ -52,8 +52,6 @@ fn create_chunks(start: u16, end: u16) -> Vec<(u16, u16)> {
 
         chunks.push((chunk_start, chunk_end));
     }
-
-    println!("{:?}", chunks);
     chunks
 }
 
