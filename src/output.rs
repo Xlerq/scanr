@@ -2,9 +2,9 @@ use crate::models::{Config, ScanSummary};
 
 pub fn print_summary(summary: &ScanSummary, config: &Config) {
     if summary.open_ports.is_empty() {
-        print!("No open ports found");
+        print!("\n\nNo open ports found");
     } else {
-        println!("Open ports");
+        println!("\n\nOpen ports");
         println!("=============");
 
         for open in summary.open_ports.iter() {

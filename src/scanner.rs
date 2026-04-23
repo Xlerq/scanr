@@ -1,9 +1,11 @@
 use std::cmp::min;
+use std::io::{self, Write};
 use std::net::{IpAddr, SocketAddr, TcpStream};
+use std::sync::mpsc::{self, Sender};
 use std::thread::{self, available_parallelism};
 use std::time::{Duration, Instant};
 
-use crate::models::{Config, ScanSummary};
+use crate::models::{Config, ScanEvent, ScanSummary};
 
 pub fn scan_range(config: &Config) -> ScanSummary {
     let timer: Instant = Instant::now();
@@ -16,10 +18,34 @@ pub fn scan_range(config: &Config) -> ScanSummary {
     let end: u16 = config.end;
 
     let chunks: Vec<(u16, u16)> = create_chunks(start, end);
+    let (tx, rx) = mpsc::channel();
 
     for (chunk_start, chunk_end) in chunks {
-        let handle = thread::spawn(move || scan_chunk(ip, chunk_start, chunk_end));
+        let tx_clone = tx.clone();
+        let handle = thread::spawn(move || scan_chunk(ip, chunk_start, chunk_end, tx_clone));
         handles.push(handle);
+    }
+
+    drop(tx);
+
+    let total_ports: u16 = end - start + 1;
+    let mut scanned_count: u16 = u16::MIN;
+    let mut live_open_count: u16 = u16::MIN;
+
+    for event in rx {
+        match event {
+            ScanEvent::PortScanned => {
+                scanned_count += 1;
+                print!(
+                    "\r{}",
+                    render_progress(scanned_count, total_ports, live_open_count)
+                );
+                io::stdout().flush().unwrap();
+            }
+            ScanEvent::PortOpen(_) => {
+                live_open_count += 1;
+            }
+        }
     }
 
     for handle in handles {
@@ -57,24 +83,50 @@ fn create_chunks(start: u16, end: u16) -> Vec<(u16, u16)> {
 
 fn choose_thread_count(total_ports: u16) -> u16 {
     let cpu_count: usize = available_parallelism().map(|n| n.get()).unwrap_or(4);
-    min(total_ports, cpu_count as u16 * 16)
+    min(total_ports, cpu_count as u16 * 32)
 }
 
 fn scan_port(ip_port: &SocketAddr) -> bool {
-    let timeout: Duration = Duration::from_millis(200);
+    let timeout: Duration = Duration::from_millis(300);
     TcpStream::connect_timeout(ip_port, timeout).is_ok()
 }
 
-fn scan_chunk(ip: IpAddr, start: u16, end: u16) -> Vec<u16> {
+fn scan_chunk(ip: IpAddr, start: u16, end: u16, tx: Sender<ScanEvent>) -> Vec<u16> {
     let mut open_ports: Vec<u16> = Vec::new();
 
     for port in start..=end {
         let ip_port: SocketAddr = SocketAddr::new(ip, port);
         if scan_port(&ip_port) {
             open_ports.push(port);
+            tx.send(ScanEvent::PortOpen(port)).unwrap();
         }
+        tx.send(ScanEvent::PortScanned).unwrap();
     }
     open_ports
+}
+
+fn render_progress(scanned: u16, total: u16, open_count: u16) -> String {
+    let bar_width: usize = 24;
+
+    let ratio: f32 = if total == 0 {
+        0.0
+    } else {
+        scanned as f32 / total as f32
+    };
+
+    let full_blocks: usize = (ratio * bar_width as f32).round() as usize;
+
+    let mut bar = String::new();
+
+    for _ in 0..full_blocks {
+        bar.push('█');
+    }
+
+    while bar.chars().count() < bar_width {
+        bar.push('·');
+    }
+
+    format!("⟦{}⟧ {}/{}  open: {}", bar, scanned, total, open_count)
 }
 
 #[cfg(test)]

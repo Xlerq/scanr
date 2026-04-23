@@ -10,3 +10,8 @@ pub struct ScanSummary {
     pub open_ports: Vec<u16>,
     pub elapsed: Duration,
 }
+
+pub enum ScanEvent {
+    PortScanned,
+    PortOpen(u16),
+}
