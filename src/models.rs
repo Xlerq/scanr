@@ -13,5 +13,5 @@ pub struct ScanSummary {
 
 pub enum ScanEvent {
     PortScanned,
-    PortOpen(),
+    PortOpen,
 }

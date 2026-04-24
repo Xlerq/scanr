@@ -6,10 +6,10 @@ mod scanner;
 
 use std::env;
 
+use crate::cli::run_cli_scan;
 use crate::models::{Config, ScanSummary};
 use crate::output::print_summary;
 use crate::parser::parse_args;
-use crate::scanner::scan_range;
 
 fn main() {
     match run() {
@@ -21,7 +21,7 @@ fn main() {
 fn run() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
     let config: Config = parse_args(&args)?;
-    let summary: ScanSummary = scan_range(&config);
+    let summary: ScanSummary = run_cli_scan(&config);
 
     print_summary(&summary, &config);
 

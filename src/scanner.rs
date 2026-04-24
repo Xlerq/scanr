@@ -1,16 +1,12 @@
 use std::cmp::min;
-use std::io::{self, Write};
 use std::net::{IpAddr, SocketAddr, TcpStream};
 use std::sync::mpsc::{self, Sender};
 use std::thread::{self, available_parallelism};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use crate::cli::render_progress;
-use crate::models::{Config, ScanEvent, ScanSummary};
+use crate::models::{Config, ScanEvent};
 
-pub fn scan_range(config: &Config) -> ScanSummary {
-    let timer: Instant = Instant::now();
-
+pub fn scan_range<F>(config: &Config, mut on_event: impl FnMut(ScanEvent)) -> Vec<u16> {
     let mut handles = Vec::new();
     let mut open_ports: Vec<u16> = Vec::new();
 
@@ -29,24 +25,8 @@ pub fn scan_range(config: &Config) -> ScanSummary {
 
     drop(tx);
 
-    let total_ports: u16 = end - start + 1;
-    let mut scanned_count: u16 = u16::MIN;
-    let mut live_open_count: u16 = u16::MIN;
-
     for event in rx {
-        match event {
-            ScanEvent::PortScanned => {
-                scanned_count += 1;
-                print!(
-                    "\r{}",
-                    render_progress(scanned_count, total_ports, live_open_count)
-                );
-                io::stdout().flush().unwrap();
-            }
-            ScanEvent::PortOpen() => {
-                live_open_count += 1;
-            }
-        }
+        on_event(event);
     }
 
     for handle in handles {
@@ -54,12 +34,7 @@ pub fn scan_range(config: &Config) -> ScanSummary {
         open_ports.append(&mut chunk_ports);
     }
 
-    let elapsed: Duration = timer.elapsed();
-
-    ScanSummary {
-        open_ports,
-        elapsed,
-    }
+    open_ports
 }
 
 fn create_chunks(start: u16, end: u16) -> Vec<(u16, u16)> {
@@ -99,7 +74,7 @@ fn scan_chunk(ip: IpAddr, start: u16, end: u16, tx: Sender<ScanEvent>) -> Vec<u1
         let ip_port: SocketAddr = SocketAddr::new(ip, port);
         if scan_port(&ip_port) {
             open_ports.push(port);
-            tx.send(ScanEvent::PortOpen()).unwrap();
+            tx.send(ScanEvent::PortOpen).unwrap();
         }
         tx.send(ScanEvent::PortScanned).unwrap();
     }
