@@ -1,3 +1,4 @@
+mod cli;
 mod models;
 mod output;
 mod parser;

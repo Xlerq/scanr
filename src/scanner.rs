@@ -5,6 +5,7 @@ use std::sync::mpsc::{self, Sender};
 use std::thread::{self, available_parallelism};
 use std::time::{Duration, Instant};
 
+use crate::cli::render_progress;
 use crate::models::{Config, ScanEvent, ScanSummary};
 
 pub fn scan_range(config: &Config) -> ScanSummary {
@@ -42,7 +43,7 @@ pub fn scan_range(config: &Config) -> ScanSummary {
                 );
                 io::stdout().flush().unwrap();
             }
-            ScanEvent::PortOpen(_) => {
+            ScanEvent::PortOpen() => {
                 live_open_count += 1;
             }
         }
@@ -98,35 +99,11 @@ fn scan_chunk(ip: IpAddr, start: u16, end: u16, tx: Sender<ScanEvent>) -> Vec<u1
         let ip_port: SocketAddr = SocketAddr::new(ip, port);
         if scan_port(&ip_port) {
             open_ports.push(port);
-            tx.send(ScanEvent::PortOpen(port)).unwrap();
+            tx.send(ScanEvent::PortOpen()).unwrap();
         }
         tx.send(ScanEvent::PortScanned).unwrap();
     }
     open_ports
-}
-
-fn render_progress(scanned: u16, total: u16, open_count: u16) -> String {
-    let bar_width: usize = 24;
-
-    let ratio: f32 = if total == 0 {
-        0.0
-    } else {
-        scanned as f32 / total as f32
-    };
-
-    let full_blocks: usize = (ratio * bar_width as f32).round() as usize;
-
-    let mut bar = String::new();
-
-    for _ in 0..full_blocks {
-        bar.push('█');
-    }
-
-    while bar.chars().count() < bar_width {
-        bar.push('·');
-    }
-
-    format!("⟦{}⟧ {}/{}  open: {}", bar, scanned, total, open_count)
 }
 
 #[cfg(test)]
