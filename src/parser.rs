@@ -54,7 +54,7 @@ fn check_ports(s: &u16, e: &u16) -> Result<(), String> {
 
 fn check_max_port(s: &u16, e: &u16) -> Result<(), String> {
     let max_port: u16 = u16::MAX;
-    if s >= &max_port && e <= &max_port {
+    if s >= &max_port && e >= &max_port {
         Err("Error: max port is 65535".to_string())
     } else {
         Ok(())
