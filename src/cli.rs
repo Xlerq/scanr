@@ -37,7 +37,7 @@ pub fn run_cli_scan(config: &Config) -> ScanSummary {
 }
 
 fn render_progress(scanned: u16, total: u16, open_count: u16) -> String {
-    let bar_width: usize = 24;
+    let bar_width: usize = 32;
 
     let ratio: f32 = if total == 0 {
         0.0

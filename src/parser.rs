@@ -12,8 +12,8 @@ pub fn parse_args(args: &[String]) -> Result<Config, String> {
         start
     };
 
-    check_ports(&start, &end)?;
     check_max_port(&start, &end)?;
+    check_ports(&start, &end)?;
 
     let config: Config = Config { ip, start, end };
     Ok(config)
@@ -53,9 +53,9 @@ fn check_ports(s: &u16, e: &u16) -> Result<(), String> {
 }
 
 fn check_max_port(s: &u16, e: &u16) -> Result<(), String> {
-    let max_port: u16 = 65000;
-    if s >= &max_port || e >= &max_port {
-        Err("Error: max port is 65000".to_string())
+    let max_port: u16 = u16::MAX;
+    if s >= &max_port && e <= &max_port {
+        Err("Error: max port is 65535".to_string())
     } else {
         Ok(())
     }
@@ -111,13 +111,13 @@ mod tests {
 
     #[test]
     fn rejects_when_max_port_reached() {
-        let args = make_args(&["scanr", "127.0.0.1", "64999", "65001"]);
+        let args = make_args(&["scanr", "127.0.0.1", "64999", "65536"]);
 
         let result = parse_args(&args);
 
         match result {
             Ok(_) => panic!("parser should reject port above 65000"),
-            Err(err) => assert_eq!(err, "Error: max port is 65000"),
+            Err(err) => assert_eq!(err, "Error: end port must be a number"),
         }
     }
 }
