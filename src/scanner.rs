@@ -6,7 +6,10 @@ use std::time::Duration;
 
 use crate::models::{Config, ScanEvent};
 
-pub fn scan_range<F>(config: &Config, mut on_event: impl FnMut(ScanEvent)) -> Vec<u16> {
+pub fn scan_range<F>(config: &Config, mut on_event: F) -> Vec<u16>
+where
+    F: FnMut(ScanEvent),
+{
     let mut handles = Vec::new();
     let mut open_ports: Vec<u16> = Vec::new();
 

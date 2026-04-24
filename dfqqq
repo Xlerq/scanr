@@ -1,0 +1,24 @@
+* [33ma0f3641[m[33m ([m[1;36mHEAD[m[33m, [m[1;31morigin/refactor/scanner[m[33m, [m[1;32mrefactor/scanner[m[33m)[m pass FnMut in scan_range for rx
+* [33m122e81d[m move render_progress to cli.rs
+* [33m3874c05[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m add progress bar
+* [33ma4fa60f[m improve pictures
+* [33m0171831[m add assets to README
+* [33mdd7ae11[m make refactor and add tests to scanner.rs
+* [33mc26c179[m add test
+* [33m9faf04a[m add automatic thread count
+* [33meb44e08[m add more threads
+* [33m985076f[m added simple threads
+* [33me492312[m add some tests
+* [33m39269ef[m refactor main.rs
+* [33mf060c83[m add structs
+* [33m25434ee[m use of result instead of option
+* [33m22fa8eb[m better code structure
+* [33m51c1d52[m added summary
+* [33m1f28dc7[m iprove scan and time handling
+* [33m214566d[m add better error handling
+* [33m5e60dac[m add range scanning
+* [33m2c768ac[m added one port scanning
+* [33m573ee27[m added license
+* [33mf542de5[m added license
+* [33mfc201c4[m initial commit
+* [33mede35bc[m init project
