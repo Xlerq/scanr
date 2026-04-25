@@ -12,7 +12,6 @@ pub fn parse_args(args: &[String]) -> Result<Config, String> {
         start
     };
 
-    check_max_port(&start, &end)?;
     check_ports(&start, &end)?;
 
     let config: Config = Config { ip, start, end };
@@ -40,22 +39,13 @@ fn parse_ip(ip: &str) -> Result<IpAddr, String> {
 fn parse_port(text: &str, field: &str) -> Result<u16, String> {
     match text.parse::<u16>() {
         Ok(port) => Ok(port),
-        Err(_) => Err(format!("Error: {field} port must be a number")),
+        Err(_) => Err(format!("Error: {field} port is not valid")),
     }
 }
 
 fn check_ports(s: &u16, e: &u16) -> Result<(), String> {
     if s > e {
         Err("Error: start_port cannot be greater than end_port".to_string())
-    } else {
-        Ok(())
-    }
-}
-
-fn check_max_port(s: &u16, e: &u16) -> Result<(), String> {
-    let max_port: u16 = u16::MAX;
-    if s >= &max_port && e >= &max_port {
-        Err("Error: max port is 65535".to_string())
     } else {
         Ok(())
     }
@@ -72,7 +62,6 @@ mod tests {
     #[test]
     fn parses_valid_ip_and_range() {
         let args = make_args(&["scanr", "127.0.0.1", "20", "25"]);
-
         let config = parse_args(&args).expect("parser should accept valid arguments");
 
         assert_eq!(config.ip.to_string(), "127.0.0.1");
@@ -83,7 +72,6 @@ mod tests {
     #[test]
     fn rejects_when_start_is_greater_than_end() {
         let args = make_args(&["scanr", "127.0.0.1", "100", "20"]);
-
         let result = parse_args(&args);
 
         match result {
@@ -95,8 +83,8 @@ mod tests {
     #[test]
     fn parses_valid_single_port() {
         let args = make_args(&["scanr", "127.0.0.1", "67"]);
-
         let config = parse_args(&args).expect("parser should output valid single port");
+
         assert_eq!(config.start, 67);
         assert_eq!(config.end, 67);
     }
@@ -112,12 +100,11 @@ mod tests {
     #[test]
     fn rejects_when_max_port_reached() {
         let args = make_args(&["scanr", "127.0.0.1", "64999", "65536"]);
-
         let result = parse_args(&args);
 
         match result {
             Ok(_) => panic!("parser should reject port above 65000"),
-            Err(err) => assert_eq!(err, "Error: end port must be a number"),
+            Err(err) => assert_eq!(err, "Error: end port is not valid"),
         }
     }
 }
