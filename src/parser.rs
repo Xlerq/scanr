@@ -1,6 +1,6 @@
 use std::net::IpAddr;
 
-use crate::models::Config;
+use crate::models::{Config, ScanSpeed};
 
 pub fn parse_args(args: &[String]) -> Result<Config, String> {
     check_len(args)?;
@@ -14,7 +14,12 @@ pub fn parse_args(args: &[String]) -> Result<Config, String> {
 
     check_ports(&start, &end)?;
 
-    let config: Config = Config { ip, start, end };
+    let config: Config = Config {
+        ip,
+        start,
+        end,
+        speed: ScanSpeed::Normal,
+    };
     Ok(config)
 }
 

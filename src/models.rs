@@ -4,6 +4,7 @@ pub struct Config {
     pub ip: IpAddr,
     pub start: u16,
     pub end: u16,
+    pub speed: ScanSpeed,
 }
 
 pub struct ScanSummary {
@@ -14,4 +15,22 @@ pub struct ScanSummary {
 pub enum ScanEvent {
     PortScanned,
     PortOpen,
+}
+
+#[derive(Clone)]
+#[allow(unused)]
+pub enum ScanSpeed {
+    Fast,
+    Normal,
+    Thorough,
+}
+
+impl ScanSpeed {
+    pub fn timeout(self) -> Duration {
+        match self {
+            ScanSpeed::Fast => Duration::from_millis(100),
+            ScanSpeed::Normal => Duration::from_millis(300),
+            ScanSpeed::Thorough => Duration::from_millis(1000),
+        }
+    }
 }

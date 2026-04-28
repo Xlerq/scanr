@@ -16,13 +16,15 @@ where
     let ip: IpAddr = config.ip;
     let start: u16 = config.start;
     let end: u16 = config.end;
+    let timeout: Duration = config.speed.clone().timeout();
 
     let chunks: Vec<(u16, u16)> = create_chunks(start, end);
     let (tx, rx) = mpsc::channel();
 
     for (chunk_start, chunk_end) in chunks {
         let tx_clone = tx.clone();
-        let handle = thread::spawn(move || scan_chunk(ip, chunk_start, chunk_end, tx_clone));
+        let handle =
+            thread::spawn(move || scan_chunk(ip, chunk_start, chunk_end, tx_clone, timeout));
         handles.push(handle);
     }
 
@@ -65,17 +67,22 @@ fn choose_thread_count(total_ports: u16) -> u16 {
     min(total_ports, cpu_count as u16 * 32)
 }
 
-fn scan_port(ip_port: &SocketAddr) -> bool {
-    let timeout: Duration = Duration::from_millis(300);
+fn scan_port(ip_port: &SocketAddr, timeout: Duration) -> bool {
     TcpStream::connect_timeout(ip_port, timeout).is_ok()
 }
 
-fn scan_chunk(ip: IpAddr, start: u16, end: u16, tx: Sender<ScanEvent>) -> Vec<u16> {
+fn scan_chunk(
+    ip: IpAddr,
+    start: u16,
+    end: u16,
+    tx: Sender<ScanEvent>,
+    timeout: Duration,
+) -> Vec<u16> {
     let mut open_ports: Vec<u16> = Vec::new();
 
     for port in start..=end {
         let ip_port: SocketAddr = SocketAddr::new(ip, port);
-        if scan_port(&ip_port) {
+        if scan_port(&ip_port, timeout) {
             open_ports.push(port);
             tx.send(ScanEvent::PortOpen).unwrap();
         }
