@@ -16,7 +16,7 @@ where
     let ip: IpAddr = config.ip;
     let start: u16 = config.start;
     let end: u16 = config.end;
-    let timeout: Duration = config.speed.clone().timeout();
+    let timeout: Duration = config.speed.timeout();
 
     let chunks: Vec<(u16, u16)> = create_chunks(start, end);
     let (tx, rx) = mpsc::channel();

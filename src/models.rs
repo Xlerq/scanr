@@ -17,8 +17,6 @@ pub enum ScanEvent {
     PortOpen,
 }
 
-#[derive(Clone)]
-#[allow(unused)]
 pub enum ScanSpeed {
     Fast,
     Normal,
@@ -26,7 +24,7 @@ pub enum ScanSpeed {
 }
 
 impl ScanSpeed {
-    pub fn timeout(self) -> Duration {
+    pub fn timeout(&self) -> Duration {
         match self {
             ScanSpeed::Fast => Duration::from_millis(100),
             ScanSpeed::Normal => Duration::from_millis(300),

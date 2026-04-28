@@ -6,11 +6,44 @@ pub fn parse_args(args: &[String]) -> Result<Config, String> {
     check_len(args)?;
     let ip: IpAddr = parse_ip(&args[1])?;
     let start: u16 = parse_port(&args[2], "start")?;
-    let end: u16 = if args.len() == 4 {
-        parse_port(&args[3], "end")?
-    } else {
-        start
-    };
+
+    let mut end: u16 = start;
+    let mut end_port_was_set: bool = false;
+    let mut speed: ScanSpeed = ScanSpeed::Normal;
+
+    let mut i: usize = 3;
+
+    while i < args.len() {
+        let arg: &str = args[i].as_str();
+
+        match arg {
+            "--speed" => {
+                let speed_arg =
+                    match args.get(i + 1) {
+                        Some(speed) => speed,
+                        None => return Err(
+                            "Error: missing speed argument\nUsage --speed [fast|normal|thorough]"
+                                .to_string(),
+                        ),
+                    };
+                speed = parse_speed(speed_arg)?;
+                i += 2;
+            }
+            _ if arg.starts_with("--") => {
+                return Err("Error: invalid flag".to_string());
+            }
+            _ => {
+                if !end_port_was_set {
+                    end = parse_port(&args[i], "end")?;
+                    end_port_was_set = true;
+                } else {
+                    return Err("Error too many arguments".to_string());
+                }
+
+                i += 1;
+            }
+        }
+    }
 
     check_ports(&start, &end)?;
 
@@ -18,16 +51,13 @@ pub fn parse_args(args: &[String]) -> Result<Config, String> {
         ip,
         start,
         end,
-        speed: ScanSpeed::Normal,
+        speed,
     };
     Ok(config)
 }
 
 fn check_len(v: &[String]) -> Result<(), String> {
-    let length = v.len();
-    if length > 4 {
-        Err("Error: too many arguments\nUsage: scanr <ip> <start_port> [end_port]".to_string())
-    } else if length < 3 {
+    if v.len() < 3 {
         Err("Error: too few arguments\nUsage: scanr <ip> <start_port> [end_port]".to_string())
     } else {
         Ok(())
@@ -45,6 +75,15 @@ fn parse_port(text: &str, field: &str) -> Result<u16, String> {
     match text.parse::<u16>() {
         Ok(port) => Ok(port),
         Err(_) => Err(format!("Error: {field} port is not valid")),
+    }
+}
+
+fn parse_speed(text: &str) -> Result<ScanSpeed, String> {
+    match text {
+        "fast" => Ok(ScanSpeed::Fast),
+        "normal" => Ok(ScanSpeed::Normal),
+        "thorough" => Ok(ScanSpeed::Thorough),
+        _ => Err("Error: invalid speed argument\nUsage --speed [fast|normal|thorough]".to_string()),
     }
 }
 
@@ -110,6 +149,18 @@ mod tests {
         match result {
             Ok(_) => panic!("parser should reject port above 65000"),
             Err(err) => assert_eq!(err, "Error: end port is not valid"),
+        }
+    }
+
+    #[test]
+    fn returns_valid_scan_speed() {
+        let text: &str = "fast";
+        let result: Result<ScanSpeed, String> = parse_speed(text);
+
+        match result {
+            Ok(ScanSpeed::Fast) => {}
+            Ok(_) => panic!("parser returned wrong scan speed"),
+            Err(err) => panic!("parser should return valid scan_speed\ngot error: {err}"),
         }
     }
 }
