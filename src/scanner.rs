@@ -101,7 +101,8 @@ mod tests {
     fn returns_true_when_port_is_open() {
         let listener: TcpListener = TcpListener::bind("127.0.0.1:0").unwrap();
         let ip_port: SocketAddr = listener.local_addr().unwrap();
-        assert!(scan_port(&ip_port));
+        let timeout: Duration = Duration::from_millis(100);
+        assert!(scan_port(&ip_port, timeout));
     }
 
     #[test]
