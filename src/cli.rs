@@ -2,16 +2,16 @@ use std::io::{self, Write};
 use std::time::{Duration, Instant};
 
 use crate::models::{Config, ScanEvent, ScanSummary};
-use crate::scanner::scan_range;
+use crate::scanner::scan_ports;
 
 pub fn run_cli_scan(config: &Config) -> ScanSummary {
     let timer: Instant = Instant::now();
 
-    let total_ports: u16 = count_total_ports(config);
+    let total_ports: u16 = config.ports.len() as u16;
     let mut scanned_count: u16 = u16::MIN;
     let mut live_open_count: u16 = u16::MIN;
 
-    let open_ports: Vec<u16> = scan_range(config, |event| match event {
+    let open_ports: Vec<u16> = scan_ports(config, |event| match event {
         ScanEvent::PortScanned => {
             scanned_count += 1;
 
@@ -58,11 +58,4 @@ fn render_progress(scanned: u16, total: u16, open_count: u16) -> String {
     }
 
     format!("⟦{}⟧ {}/{}  open: {}", bar, scanned, total, open_count)
-}
-
-fn count_total_ports(config: &Config) -> u16 {
-    let start: u16 = config.start;
-    let end: u16 = config.end;
-
-    end - start + 1
 }

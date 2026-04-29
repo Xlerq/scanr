@@ -30,13 +30,29 @@ fn write_summary<W: Write>(
     writeln!(writer, "=============")?;
     writeln!(writer, "Ip: {}", config.ip)?;
 
-    if config.start != config.end {
-        writeln!(writer, "Scan range: {} - {}", config.start, config.end)?;
+    let scanned_ports: usize = config.ports.len();
+
+    if scanned_ports > 10 {
+        write!(writer, "Scanned ports: ")?;
+        for i in 0..10 {
+            write!(writer, "{} ", config.ports[i])?;
+        }
+        write!(
+            writer,
+            "... {} ({} total)",
+            config.ports.last().unwrap(),
+            config.ports.len()
+        )?;
+    } else if scanned_ports == 1 {
+        write!(writer, "Scanned port: {}", config.ports[0])?;
     } else {
-        writeln!(writer, "Scan port: {}", config.start)?;
+        write!(writer, "Scanned ports: ")?;
+        for i in 0..scanned_ports {
+            write!(writer, "{} ", config.ports[i])?;
+        }
     }
 
-    writeln!(writer, "Elapsed: {} s", summary.elapsed.as_secs_f32())?;
+    writeln!(writer, "\nElapsed: {} s", summary.elapsed.as_secs_f32())?;
 
     Ok(())
 }

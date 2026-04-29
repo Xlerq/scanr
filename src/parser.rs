@@ -5,10 +5,7 @@ use crate::models::{Config, ScanSpeed};
 pub fn parse_args(args: &[String]) -> Result<Config, String> {
     check_len(args)?;
     let ip: IpAddr = parse_ip(&args[1])?;
-    let start: u16 = parse_port(&args[2], "start")?;
-
-    let mut end: u16 = start;
-    let mut end_port_was_set: bool = false;
+    let ports: Vec<u16> = parse_ports(&args[2])?;
     let mut speed: ScanSpeed = ScanSpeed::Normal;
 
     let mut i: usize = 3;
@@ -33,32 +30,18 @@ pub fn parse_args(args: &[String]) -> Result<Config, String> {
                 return Err("Error: invalid flag".to_string());
             }
             _ => {
-                if !end_port_was_set {
-                    end = parse_port(&args[i], "end")?;
-                    end_port_was_set = true;
-                } else {
-                    return Err("Error too many arguments".to_string());
-                }
-
-                i += 1;
+                return Err("Error too many arguments".to_string());
             }
         }
     }
 
-    check_ports(&start, &end)?;
-
-    let config: Config = Config {
-        ip,
-        start,
-        end,
-        speed,
-    };
+    let config: Config = Config { ip, ports, speed };
     Ok(config)
 }
 
 fn check_len(v: &[String]) -> Result<(), String> {
     if v.len() < 3 {
-        Err("Error: too few arguments\nUsage: scanr <ip> <start_port> [end_port]".to_string())
+        Err("Error: too few arguments\nUsage: scanr <ip> <ports>".to_string())
     } else {
         Ok(())
     }
@@ -71,10 +54,49 @@ fn parse_ip(ip: &str) -> Result<IpAddr, String> {
     }
 }
 
-fn parse_port(text: &str, field: &str) -> Result<u16, String> {
+fn parse_ports(arg: &str) -> Result<Vec<u16>, String> {
+    let mut ports: Vec<u16> = Vec::new();
+    let parts: Vec<&str> = arg.split(',').collect();
+
+    let mut i: usize = usize::MIN;
+    while i < parts.len() {
+        let is_range: bool = parts[i].contains('-');
+
+        if is_range {
+            let range: Vec<u16> = parse_range(parts[i])?;
+            ports.extend_from_slice(&range);
+        } else {
+            let port: u16 = parse_port(parts[i])?;
+            ports.push(port);
+        }
+        i += 1;
+    }
+    Ok(ports)
+}
+
+fn parse_range(text: &str) -> Result<Vec<u16>, String> {
+    let split: Vec<&str> = text.split('-').collect();
+    if split.len() != 2 {
+        return Err("Error: invalid range".to_string());
+    }
+    let start: u16 = parse_port(split[0])?;
+    let end: u16 = parse_port(split[1])?;
+
+    check_ports(&start, &end)?;
+
+    let mut ports: Vec<u16> = Vec::with_capacity((end - start + 1) as usize);
+
+    for i in start..=end {
+        ports.push(i);
+    }
+
+    Ok(ports)
+}
+
+fn parse_port(text: &str) -> Result<u16, String> {
     match text.parse::<u16>() {
         Ok(port) => Ok(port),
-        Err(_) => Err(format!("Error: {field} port is not valid")),
+        Err(_) => Err("Error: port is not valid".to_string()),
     }
 }
 
@@ -104,33 +126,47 @@ mod tests {
     }
 
     #[test]
-    fn parses_valid_ip_and_range() {
-        let args = make_args(&["scanr", "127.0.0.1", "20", "25"]);
-        let config = parse_args(&args).expect("parser should accept valid arguments");
+    fn parses_valid_ip_and_single_port() {
+        let args = make_args(&["scanr", "127.0.0.1", "67"]);
+        let config = parse_args(&args).expect("parser should output valid single port");
 
         assert_eq!(config.ip.to_string(), "127.0.0.1");
-        assert_eq!(config.start, 20);
-        assert_eq!(config.end, 25);
+        assert_eq!(config.ports, vec![67]);
     }
 
     #[test]
-    fn rejects_when_start_is_greater_than_end() {
-        let args = make_args(&["scanr", "127.0.0.1", "100", "20"]);
+    fn parses_port_range() {
+        let args = make_args(&["scanr", "127.0.0.1", "20-25"]);
+        let config = parse_args(&args).expect("parser should accept valid port range");
+
+        assert_eq!(config.ports, vec![20, 21, 22, 23, 24, 25]);
+    }
+
+    #[test]
+    fn parses_port_list() {
+        let args = make_args(&["scanr", "127.0.0.1", "22,80,443"]);
+        let config = parse_args(&args).expect("parser should accept port list");
+
+        assert_eq!(config.ports, vec![22, 80, 443]);
+    }
+
+    #[test]
+    fn parses_mixed_port_expression() {
+        let args = make_args(&["scanr", "127.0.0.1", "22,80,100-102"]);
+        let config = parse_args(&args).expect("parser should accept mixed port expression");
+
+        assert_eq!(config.ports, vec![22, 80, 100, 101, 102]);
+    }
+
+    #[test]
+    fn rejects_when_range_start_is_greater_than_end() {
+        let args = make_args(&["scanr", "127.0.0.1", "100-20"]);
         let result = parse_args(&args);
 
         match result {
             Ok(_) => panic!("parser should reject reversed port range"),
             Err(err) => assert_eq!(err, "Error: start_port cannot be greater than end_port"),
         }
-    }
-
-    #[test]
-    fn parses_valid_single_port() {
-        let args = make_args(&["scanr", "127.0.0.1", "67"]);
-        let config = parse_args(&args).expect("parser should output valid single port");
-
-        assert_eq!(config.start, 67);
-        assert_eq!(config.end, 67);
     }
 
     #[test]
@@ -143,12 +179,34 @@ mod tests {
 
     #[test]
     fn rejects_when_max_port_reached() {
-        let args = make_args(&["scanr", "127.0.0.1", "64999", "65536"]);
+        let args = make_args(&["scanr", "127.0.0.1", "65536"]);
         let result = parse_args(&args);
 
         match result {
             Ok(_) => panic!("parser should reject port above 65000"),
-            Err(err) => assert_eq!(err, "Error: end port is not valid"),
+            Err(err) => assert_eq!(err, "Error: port is not valid"),
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_range_format() {
+        let args = make_args(&["scanr", "127.0.0.1", "1-2-3"]);
+        let result = parse_args(&args);
+
+        match result {
+            Ok(_) => panic!("parser should reject invalid range format"),
+            Err(err) => assert_eq!(err, "Error: invalid range"),
+        }
+    }
+
+    #[test]
+    fn rejects_extra_positional_argument() {
+        let args = make_args(&["scanr", "127.0.0.1", "80", "443"]);
+        let result = parse_args(&args);
+
+        match result {
+            Ok(_) => panic!("parser should reject extra positional argument"),
+            Err(err) => assert_eq!(err, "Error too many arguments"),
         }
     }
 
@@ -177,11 +235,10 @@ mod tests {
 
     #[test]
     fn parses_thorough_speed_flag_with_range() {
-        let args = make_args(&["scanr", "127.0.0.1", "20", "25", "--speed", "thorough"]);
+        let args = make_args(&["scanr", "127.0.0.1", "20-25", "--speed", "thorough"]);
         let config = parse_args(&args).expect("parser should accept thorough scan speed");
 
-        assert_eq!(config.start, 20);
-        assert_eq!(config.end, 25);
+        assert_eq!(config.ports, vec![20, 21, 22, 23, 24, 25]);
 
         match config.speed {
             ScanSpeed::Thorough => {}
