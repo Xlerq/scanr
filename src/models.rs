@@ -2,8 +2,7 @@ use std::{net::IpAddr, time::Duration};
 
 pub struct Config {
     pub ip: IpAddr,
-    pub start: u16,
-    pub end: u16,
+    pub ports: Vec<u16>,
     pub speed: ScanSpeed,
 }
 
