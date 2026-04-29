@@ -90,39 +90,35 @@ mod tests {
 
     #[test]
     fn number_of_thread() {
-        let total_ports: u16 = 3;
-        let thread_count: u16 = choose_thread_count(total_ports);
+        let total_ports: usize = 3;
+        let thread_count: usize = choose_thread_count(total_ports);
 
         assert_eq!(total_ports, thread_count);
     }
 
     #[test]
     fn number_of_thread2() {
-        let total_ports: u16 = 60000;
-        let thread_count: u16 = choose_thread_count(total_ports);
+        let total_ports: usize = 60000;
+        let thread_count: usize = choose_thread_count(total_ports);
 
         assert!(thread_count < total_ports);
     }
 
     #[test]
-    fn splits_range_into_valid_chunks() {
-        let chunks: Vec<(u16, u16)> = create_chunks(1, 5);
+    fn splits_port_list_into_valid_chunks() {
+        let chunks: Vec<Vec<u16>> = create_chunks(vec![1, 2, 3, 4, 5]);
 
-        assert_eq!(chunks, [(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)]);
+        assert_eq!(chunks, vec![vec![1], vec![2], vec![3], vec![4], vec![5]]);
     }
 
     #[test]
-    fn creates_chunks_that_cover_entire_range() {
-        let chunks: Vec<(u16, u16)> = create_chunks(100, 10000);
+    fn creates_chunks_that_cover_all_ports() {
+        let ports: Vec<u16> = (100..=10000).collect();
+        let chunks: Vec<Vec<u16>> = create_chunks(ports.clone());
         assert!(!chunks.is_empty());
 
-        let first_chunk: (u16, u16) = chunks[0];
-        let last_chunk: (u16, u16) = chunks[chunks.len() - 1];
+        let flattened_ports: Vec<u16> = chunks.into_iter().flatten().collect();
 
-        let (first_start, _) = first_chunk;
-        let (_, last_end) = last_chunk;
-
-        assert_eq!(first_start, 100);
-        assert_eq!(last_end, 10000);
+        assert_eq!(flattened_ports, ports);
     }
 }
