@@ -163,4 +163,57 @@ mod tests {
             Err(err) => panic!("parser should return valid scan_speed\ngot error: {err}"),
         }
     }
+
+    #[test]
+    fn parses_fast_speed_flag() {
+        let args = make_args(&["scanr", "127.0.0.1", "80", "--speed", "fast"]);
+        let config = parse_args(&args).expect("parser should accept fast scan speed");
+
+        match config.speed {
+            ScanSpeed::Fast => {}
+            _ => panic!("parser returned wrong scan speed"),
+        }
+    }
+
+    #[test]
+    fn parses_thorough_speed_flag_with_range() {
+        let args = make_args(&["scanr", "127.0.0.1", "20", "25", "--speed", "thorough"]);
+        let config = parse_args(&args).expect("parser should accept thorough scan speed");
+
+        assert_eq!(config.start, 20);
+        assert_eq!(config.end, 25);
+
+        match config.speed {
+            ScanSpeed::Thorough => {}
+            _ => panic!("parser returned wrong scan speed"),
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_speed_flag_value() {
+        let args = make_args(&["scanr", "127.0.0.1", "80", "--speed", "slow"]);
+        let result = parse_args(&args);
+
+        match result {
+            Ok(_) => panic!("parser should reject invalid scan speed"),
+            Err(err) => assert_eq!(
+                err,
+                "Error: invalid speed argument\nUsage --speed [fast|normal|thorough]"
+            ),
+        }
+    }
+
+    #[test]
+    fn rejects_missing_speed_flag_value() {
+        let args = make_args(&["scanr", "127.0.0.1", "80", "--speed"]);
+        let result = parse_args(&args);
+
+        match result {
+            Ok(_) => panic!("parser should reject missing scan speed"),
+            Err(err) => assert_eq!(
+                err,
+                "Error: missing speed argument\nUsage --speed [fast|normal|thorough]"
+            ),
+        }
+    }
 }
