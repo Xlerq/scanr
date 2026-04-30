@@ -1,57 +1,13 @@
-use std::net::IpAddr;
+use crate::models::{Cli, Config};
 
-use crate::models::{Config, ScanSpeed};
-
-pub fn parse_args(args: &[String]) -> Result<Config, String> {
-    check_len(args)?;
-    let ip: IpAddr = parse_ip(&args[1])?;
-    let ports: Vec<u16> = parse_ports(&args[2])?;
-    let mut speed: ScanSpeed = ScanSpeed::Normal;
-
-    let mut i: usize = 3;
-
-    while i < args.len() {
-        let arg: &str = args[i].as_str();
-
-        match arg {
-            "--speed" => {
-                let speed_arg =
-                    match args.get(i + 1) {
-                        Some(speed) => speed,
-                        None => return Err(
-                            "Error: missing speed argument\nUsage --speed [fast|normal|thorough]"
-                                .to_string(),
-                        ),
-                    };
-                speed = parse_speed(speed_arg)?;
-                i += 2;
-            }
-            _ if arg.starts_with("--") => {
-                return Err("Error: invalid flag".to_string());
-            }
-            _ => {
-                return Err("Error too many arguments".to_string());
-            }
-        }
-    }
-
-    let config: Config = Config { ip, ports, speed };
+pub fn parse_cli(cli: Cli) -> Result<Config, String> {
+    let parsed_ports: Vec<u16> = parse_ports(&cli.ports)?;
+    let config: Config = Config {
+        ip: cli.ip,
+        ports: parsed_ports,
+        speed: cli.speed.into(),
+    };
     Ok(config)
-}
-
-fn check_len(v: &[String]) -> Result<(), String> {
-    if v.len() < 3 {
-        Err("Error: too few arguments\nUsage: scanr <ip> <ports>".to_string())
-    } else {
-        Ok(())
-    }
-}
-
-fn parse_ip(ip: &str) -> Result<IpAddr, String> {
-    match ip.parse::<IpAddr>() {
-        Ok(addr) => Ok(addr),
-        Err(_) => Err("Error: invalid IP address".to_string()),
-    }
 }
 
 fn parse_ports(arg: &str) -> Result<Vec<u16>, String> {
@@ -100,15 +56,6 @@ fn parse_port(text: &str) -> Result<u16, String> {
     }
 }
 
-fn parse_speed(text: &str) -> Result<ScanSpeed, String> {
-    match text {
-        "fast" => Ok(ScanSpeed::Fast),
-        "normal" => Ok(ScanSpeed::Normal),
-        "thorough" => Ok(ScanSpeed::Thorough),
-        _ => Err("Error: invalid speed argument\nUsage --speed [fast|normal|thorough]".to_string()),
-    }
-}
-
 fn check_ports(s: &u16, e: &u16) -> Result<(), String> {
     if s > e {
         Err("Error: start_port cannot be greater than end_port".to_string())
@@ -119,16 +66,20 @@ fn check_ports(s: &u16, e: &u16) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use clap::Parser;
+
+    use crate::models::{Cli, ScanSpeed};
+
     use super::*;
 
-    fn make_args(args: &[&str]) -> Vec<String> {
-        args.iter().map(|arg| arg.to_string()).collect()
+    fn parse_test_cli(args: &[&str]) -> Cli {
+        Cli::try_parse_from(args).expect("clap should accept valid arguments")
     }
 
     #[test]
-    fn parses_valid_ip_and_single_port() {
-        let args = make_args(&["scanr", "127.0.0.1", "67"]);
-        let config = parse_args(&args).expect("parser should output valid single port");
+    fn parses_cli_into_config_with_single_port() {
+        let cli = parse_test_cli(&["scanr", "127.0.0.1", "67"]);
+        let config = parse_cli(cli).expect("parser should output valid config");
 
         assert_eq!(config.ip.to_string(), "127.0.0.1");
         assert_eq!(config.ports, vec![67]);
@@ -136,32 +87,29 @@ mod tests {
 
     #[test]
     fn parses_port_range() {
-        let args = make_args(&["scanr", "127.0.0.1", "20-25"]);
-        let config = parse_args(&args).expect("parser should accept valid port range");
+        let ports = parse_ports("20-25").expect("parser should accept valid port range");
 
-        assert_eq!(config.ports, vec![20, 21, 22, 23, 24, 25]);
+        assert_eq!(ports, vec![20, 21, 22, 23, 24, 25]);
     }
 
     #[test]
     fn parses_port_list() {
-        let args = make_args(&["scanr", "127.0.0.1", "22,80,443"]);
-        let config = parse_args(&args).expect("parser should accept port list");
+        let ports = parse_ports("22,80,443").expect("parser should accept port list");
 
-        assert_eq!(config.ports, vec![22, 80, 443]);
+        assert_eq!(ports, vec![22, 80, 443]);
     }
 
     #[test]
     fn parses_mixed_port_expression() {
-        let args = make_args(&["scanr", "127.0.0.1", "22,80,100-102"]);
-        let config = parse_args(&args).expect("parser should accept mixed port expression");
+        let ports =
+            parse_ports("22,80,100-102").expect("parser should accept mixed port expression");
 
-        assert_eq!(config.ports, vec![22, 80, 100, 101, 102]);
+        assert_eq!(ports, vec![22, 80, 100, 101, 102]);
     }
 
     #[test]
     fn rejects_when_range_start_is_greater_than_end() {
-        let args = make_args(&["scanr", "127.0.0.1", "100-20"]);
-        let result = parse_args(&args);
+        let result = parse_ports("100-20");
 
         match result {
             Ok(_) => panic!("parser should reject reversed port range"),
@@ -170,17 +118,15 @@ mod tests {
     }
 
     #[test]
-    fn rejects_invalid_ip() {
-        match parse_ip("19c.168.0.10.") {
-            Ok(_) => panic!("parser should reject invalid IP address"),
-            Err(err) => assert_eq!(err, "Error: invalid IP address"),
-        };
+    fn clap_rejects_invalid_ip() {
+        let result = Cli::try_parse_from(["scanr", "19c.168.0.10.", "80"]);
+
+        assert!(result.is_err());
     }
 
     #[test]
     fn rejects_when_max_port_reached() {
-        let args = make_args(&["scanr", "127.0.0.1", "65536"]);
-        let result = parse_args(&args);
+        let result = parse_ports("65536");
 
         match result {
             Ok(_) => panic!("parser should reject port above 65000"),
@@ -190,8 +136,7 @@ mod tests {
 
     #[test]
     fn rejects_invalid_range_format() {
-        let args = make_args(&["scanr", "127.0.0.1", "1-2-3"]);
-        let result = parse_args(&args);
+        let result = parse_ports("1-2-3");
 
         match result {
             Ok(_) => panic!("parser should reject invalid range format"),
@@ -200,32 +145,16 @@ mod tests {
     }
 
     #[test]
-    fn rejects_extra_positional_argument() {
-        let args = make_args(&["scanr", "127.0.0.1", "80", "443"]);
-        let result = parse_args(&args);
+    fn clap_rejects_extra_positional_argument() {
+        let result = Cli::try_parse_from(["scanr", "127.0.0.1", "80", "443"]);
 
-        match result {
-            Ok(_) => panic!("parser should reject extra positional argument"),
-            Err(err) => assert_eq!(err, "Error too many arguments"),
-        }
-    }
-
-    #[test]
-    fn returns_valid_scan_speed() {
-        let text: &str = "fast";
-        let result: Result<ScanSpeed, String> = parse_speed(text);
-
-        match result {
-            Ok(ScanSpeed::Fast) => {}
-            Ok(_) => panic!("parser returned wrong scan speed"),
-            Err(err) => panic!("parser should return valid scan_speed\ngot error: {err}"),
-        }
+        assert!(result.is_err());
     }
 
     #[test]
     fn parses_fast_speed_flag() {
-        let args = make_args(&["scanr", "127.0.0.1", "80", "--speed", "fast"]);
-        let config = parse_args(&args).expect("parser should accept fast scan speed");
+        let cli = parse_test_cli(&["scanr", "127.0.0.1", "80", "--speed", "fast"]);
+        let config = parse_cli(cli).expect("parser should accept fast scan speed");
 
         match config.speed {
             ScanSpeed::Fast => {}
@@ -235,8 +164,8 @@ mod tests {
 
     #[test]
     fn parses_thorough_speed_flag_with_range() {
-        let args = make_args(&["scanr", "127.0.0.1", "20-25", "--speed", "thorough"]);
-        let config = parse_args(&args).expect("parser should accept thorough scan speed");
+        let cli = parse_test_cli(&["scanr", "127.0.0.1", "20-25", "--speed", "thorough"]);
+        let config = parse_cli(cli).expect("parser should accept thorough scan speed");
 
         assert_eq!(config.ports, vec![20, 21, 22, 23, 24, 25]);
 
@@ -247,30 +176,16 @@ mod tests {
     }
 
     #[test]
-    fn rejects_invalid_speed_flag_value() {
-        let args = make_args(&["scanr", "127.0.0.1", "80", "--speed", "slow"]);
-        let result = parse_args(&args);
+    fn clap_rejects_invalid_speed_flag_value() {
+        let result = Cli::try_parse_from(["scanr", "127.0.0.1", "80", "--speed", "slow"]);
 
-        match result {
-            Ok(_) => panic!("parser should reject invalid scan speed"),
-            Err(err) => assert_eq!(
-                err,
-                "Error: invalid speed argument\nUsage --speed [fast|normal|thorough]"
-            ),
-        }
+        assert!(result.is_err());
     }
 
     #[test]
-    fn rejects_missing_speed_flag_value() {
-        let args = make_args(&["scanr", "127.0.0.1", "80", "--speed"]);
-        let result = parse_args(&args);
+    fn clap_rejects_missing_speed_flag_value() {
+        let result = Cli::try_parse_from(["scanr", "127.0.0.1", "80", "--speed"]);
 
-        match result {
-            Ok(_) => panic!("parser should reject missing scan speed"),
-            Err(err) => assert_eq!(
-                err,
-                "Error: missing speed argument\nUsage --speed [fast|normal|thorough]"
-            ),
-        }
+        assert!(result.is_err());
     }
 }
