@@ -4,12 +4,11 @@ mod output;
 mod parser;
 mod scanner;
 
-use std::env;
-
 use crate::cli::run_cli_scan;
-use crate::models::{Config, ScanSummary};
+use crate::models::{Cli, Config, ScanSummary};
 use crate::output::print_summary;
-use crate::parser::parse_args;
+use crate::parser::parse_cli;
+use clap::Parser;
 
 fn main() {
     match run() {
@@ -19,8 +18,8 @@ fn main() {
 }
 
 fn run() -> Result<(), String> {
-    let args: Vec<String> = env::args().collect();
-    let config: Config = parse_args(&args)?;
+    let cli: Cli = Cli::parse();
+    let config: Config = parse_cli(cli)?;
     let summary: ScanSummary = run_cli_scan(&config);
 
     print_summary(&summary, &config);
