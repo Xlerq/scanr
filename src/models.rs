@@ -1,6 +1,7 @@
 use clap::{Parser, ValueEnum};
 use std::{net::IpAddr, time::Duration};
 
+#[derive(Parser)]
 pub struct Cli {
     /// Target IP address to scan
     pub ip: IpAddr,
