@@ -5,7 +5,7 @@ Minimal CLI port scanner written in Rust.
 ## Usage
 
 ```bash
-scanr <ip> <ports> [--speed fast|normal|thorough]
+scanr [OPTIONS] <IP> <PORTS>
 ```
 
 `<ports>` accepts a single port, a range, a comma-separated list, or a mix of lists and ranges.
@@ -29,9 +29,11 @@ scanr 127.0.0.1 443 --speed thorough
 
 ## Speed modes
 
-- `fast`: shorter timeout for quicker scans
-- `normal`: default scan speed
-- `thorough`: longer timeout for slower but more patient scans
+- `fast`: short timeout for quicker scans on LAN
+- `normal`: default timeout, generally good
+- `thorough`: longer timeout for high latency networks or VPN
+
+Use `--speed <SPEED>` to select a speed preset. The default is `normal`.
 
 ## Capabilities
 
