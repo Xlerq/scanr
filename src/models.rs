@@ -1,14 +1,26 @@
 use clap::{Parser, ValueEnum};
 use std::{net::IpAddr, time::Duration};
 
-#[derive(Parser)]
-#[command(name = "scanr", about = "Minimal CLI port scanner")]
 pub struct Cli {
+    /// Target IP address to scan
     pub ip: IpAddr,
+    /// Ports to scan, e.g 80, 20-25, 22,80,443
     pub ports: String,
+    /// Scan speed preset
     #[arg(long, value_enum, default_value_t = CliSpeed::Normal)]
     pub speed: CliSpeed,
 }
+
+#[derive(Clone, ValueEnum)]
+pub enum CliSpeed {
+    /// Short timeout for quicker scans, LAN
+    Fast,
+    /// Default timeout, generally good
+    Normal,
+    /// Longer timeout for high lateny large networks, VPN
+    Thorough,
+}
+
 pub struct Config {
     pub ip: IpAddr,
     pub ports: Vec<u16>,
@@ -26,13 +38,6 @@ pub enum ScanEvent {
 }
 
 pub enum ScanSpeed {
-    Fast,
-    Normal,
-    Thorough,
-}
-
-#[derive(Clone, ValueEnum)]
-pub enum CliSpeed {
     Fast,
     Normal,
     Thorough,
