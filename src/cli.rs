@@ -7,9 +7,9 @@ use crate::scanner::scan_ports;
 pub fn run_cli_scan(config: &Config) -> ScanSummary {
     let timer: Instant = Instant::now();
 
-    let total_ports: u16 = config.ports.len() as u16;
-    let mut scanned_count: u16 = u16::MIN;
-    let mut live_open_count: u16 = u16::MIN;
+    let total_ports: usize = config.ports.len();
+    let mut scanned_count: usize = usize::MIN;
+    let mut live_open_count: usize = usize::MIN;
 
     let open_ports: Vec<u16> = scan_ports(config, |event| match event {
         ScanEvent::PortScanned => {
@@ -36,7 +36,7 @@ pub fn run_cli_scan(config: &Config) -> ScanSummary {
     }
 }
 
-fn render_progress(scanned: u16, total: u16, open_count: u16) -> String {
+fn render_progress(scanned: usize, total: usize, open_count: usize) -> String {
     let bar_width: usize = 26;
 
     let ratio: f32 = if total == 0 {
