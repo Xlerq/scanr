@@ -10,6 +10,9 @@ pub struct Cli {
     /// Scan speed preset
     #[arg(long, value_enum, default_value_t = CliSpeed::Normal)]
     pub speed: CliSpeed,
+    /// Specify output format
+    #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+    pub format: OutputFormat,
 }
 
 #[derive(Clone, ValueEnum)]
@@ -22,10 +25,18 @@ pub enum CliSpeed {
     Thorough,
 }
 
+#[derive(Clone, ValueEnum)]
+pub enum OutputFormat {
+    Table,
+    Csv,
+    Json,
+}
+
 pub struct Config {
     pub ip: IpAddr,
     pub ports: Vec<u16>,
     pub speed: ScanSpeed,
+    pub format: OutputFormat,
 }
 
 pub struct ScanSummary {

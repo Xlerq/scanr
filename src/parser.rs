@@ -6,6 +6,7 @@ pub fn parse_cli(cli: Cli) -> Result<Config, String> {
         ip: cli.ip,
         ports: parsed_ports,
         speed: cli.speed.into(),
+        format: cli.format,
     };
     Ok(config)
 }
@@ -50,7 +51,7 @@ fn parse_range(text: &str) -> Result<Vec<u16>, String> {
 }
 
 fn parse_port(text: &str) -> Result<u16, String> {
-    match text.parse::<u16>() {
+    match text.trim().parse::<u16>() {
         Ok(port) => Ok(port),
         Err(_) => Err("Error: port is not valid".to_string()),
     }
@@ -97,6 +98,20 @@ mod tests {
         let ports = parse_ports("22,80,443").expect("parser should accept port list");
 
         assert_eq!(ports, vec![22, 80, 443]);
+    }
+
+    #[test]
+    fn parses_port_list_with_spaces() {
+        let ports = parse_ports("22, 80, 443").expect("parser should accept spaces in port list");
+
+        assert_eq!(ports, vec![22, 80, 443]);
+    }
+
+    #[test]
+    fn parses_port_range_with_spaces() {
+        let ports = parse_ports("20 - 25").expect("parser should accept spaces in port range");
+
+        assert_eq!(ports, vec![20, 21, 22, 23, 24, 25]);
     }
 
     #[test]

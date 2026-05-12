@@ -1,7 +1,7 @@
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
 
-use crate::models::{Config, ScanEvent, ScanSummary};
+use crate::models::{Config, OutputFormat, ScanEvent, ScanSummary};
 use crate::scanner::scan_ports;
 
 pub fn run_cli_scan(config: &Config) -> ScanSummary {
@@ -11,16 +11,20 @@ pub fn run_cli_scan(config: &Config) -> ScanSummary {
     let mut scanned_count: usize = usize::MIN;
     let mut live_open_count: usize = usize::MIN;
 
+    let show_progress: bool = matches!(config.format, OutputFormat::Table);
+
     let open_ports: Vec<u16> = scan_ports(config, |event| match event {
         ScanEvent::PortScanned => {
             scanned_count += 1;
 
-            print!(
-                "\r{}",
-                render_progress(scanned_count, total_ports, live_open_count)
-            );
+            if show_progress {
+                print!(
+                    "\r{}",
+                    render_progress(scanned_count, total_ports, live_open_count)
+                );
 
-            io::stdout().flush().unwrap();
+                io::stdout().flush().unwrap();
+            }
         }
 
         ScanEvent::PortOpen => {
