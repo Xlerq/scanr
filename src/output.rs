@@ -1,6 +1,6 @@
-use std::io::{self, Write};
-
 use crate::models::{Config, OutputFormat, ScanSummary};
+use serde::Serialize;
+use std::io::{self, Write};
 
 pub fn print_summary(summary: &ScanSummary, config: &Config) {
     let stdout = io::stdout();
@@ -77,28 +77,44 @@ fn write_csv_summary<W: Write>(
     Ok(())
 }
 
+#[derive(Serialize)]
+struct JsonSummary {
+    ip: String,
+    scanned_ports: usize,
+    elasped_seconds: f64,
+    open_ports: Vec<JsonOpenPort>,
+}
+
+#[derive(Serialize)]
+struct JsonOpenPort {
+    port: u16,
+    service: Option<&'static str>,
+}
+
 fn write_json_summary<W: Write>(
     writer: &mut W,
     summary: &ScanSummary,
     config: &Config,
 ) -> io::Result<()> {
-    let mut common_port_names: Vec<&str> = Vec::with_capacity(summary.open_ports.len());
+    let mut open_ports: Vec<JsonOpenPort> = Vec::with_capacity(summary.open_ports.len());
 
     for open in summary.open_ports.iter() {
-        let port_name: Option<&str> = get_common_port_name(*open);
+        let json_port: JsonOpenPort = JsonOpenPort {
+            port: *open,
+            service: get_common_port_name(*open),
+        };
 
-        match port_name {
-            Some(name) => common_port_names.push(name),
-            None => common_port_names.push(""),
-        }
+        open_ports.push(json_port);
     }
 
-    writeln!(writer, "{{")?;
-    writeln!(writer, "  \"ip\": \"{}\",", config.ip)?;
-    writeln!(writer, "  \"open_ports\": {:?}", summary.open_ports)?;
-    writeln!(writer, "  \"service_name\": {:?}", common_port_names)?;
-    writeln!(writer, "}}")?;
+    let json_summary = JsonSummary {
+        ip: config.ip.to_string(),
+        scanned_ports: config.ports.len(),
+        elasped_seconds: summary.elapsed.as_secs_f64(),
+        open_ports,
+    };
 
+    serde_json::to_writer_pretty(writer, &json_summary).map_err(io::Error::other)?;
     Ok(())
 }
 
