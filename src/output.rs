@@ -70,7 +70,7 @@ fn write_csv_summary<W: Write>(
 
         match port_name {
             Some(name) => writeln!(writer, "{},{},{}", config.ip, open, name)?,
-            None => writeln!(writer, "{},{}", config.ip, open)?,
+            None => writeln!(writer, "{},{},", config.ip, open)?,
         }
     }
 
@@ -81,7 +81,7 @@ fn write_csv_summary<W: Write>(
 struct JsonSummary {
     ip: String,
     scanned_ports: usize,
-    elasped_seconds: f64,
+    elapsed_seconds: f64,
     open_ports: Vec<JsonOpenPort>,
 }
 
@@ -110,7 +110,7 @@ fn write_json_summary<W: Write>(
     let json_summary = JsonSummary {
         ip: config.ip.to_string(),
         scanned_ports: config.ports.len(),
-        elasped_seconds: summary.elapsed.as_secs_f64(),
+        elapsed_seconds: summary.elapsed.as_secs_f64(),
         open_ports,
     };
 
@@ -238,3 +238,62 @@ const COMMON_PORTS: &[(u16, &str)] = &[
     (27018, "mongodb-shard"),
     (27019, "mongodb-config"),
 ];
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use serde_json::Value;
+
+    use crate::models::{OutputFormat, ScanSpeed};
+
+    use super::*;
+
+    fn test_config(format: OutputFormat) -> Config {
+        Config {
+            ip: "127.0.0.1".parse().unwrap(),
+            ports: vec![22, 65000],
+            speed: ScanSpeed::Normal,
+            format,
+        }
+    }
+
+    fn test_summary() -> ScanSummary {
+        ScanSummary {
+            open_ports: vec![22, 65000],
+            elapsed: Duration::from_secs(2),
+        }
+    }
+
+    #[test]
+    fn writes_valid_json_summary() {
+        let config = test_config(OutputFormat::Json);
+        let summary = test_summary();
+        let mut output = Vec::new();
+
+        write_json_summary(&mut output, &summary, &config).unwrap();
+
+        let json: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(json["ip"], "127.0.0.1");
+        assert_eq!(json["scanned_ports"], 2);
+        assert_eq!(json["elapsed_seconds"], 2.0);
+        assert_eq!(json["open_ports"][0]["port"], 22);
+        assert_eq!(json["open_ports"][0]["service"], "ssh");
+        assert_eq!(json["open_ports"][1]["port"], 65000);
+        assert!(json["open_ports"][1]["service"].is_null());
+    }
+
+    #[test]
+    fn writes_csv_summary_with_service_column() {
+        let config = test_config(OutputFormat::Csv);
+        let summary = test_summary();
+        let mut output = Vec::new();
+
+        write_csv_summary(&mut output, &summary, &config).unwrap();
+
+        let text = String::from_utf8(output).unwrap();
+        assert!(text.contains("ip,port,service\n"));
+        assert!(text.contains("127.0.0.1,22,ssh\n"));
+        assert!(text.contains("127.0.0.1,65000,\n"));
+    }
+}
