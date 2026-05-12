@@ -28,6 +28,8 @@ fn parse_ports(arg: &str) -> Result<Vec<u16>, String> {
         }
         i += 1;
     }
+    ports.sort();
+    ports.dedup();
     Ok(ports)
 }
 
