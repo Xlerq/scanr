@@ -1,11 +1,13 @@
 mod cli;
+mod discover;
 mod models;
 mod output;
 mod parser;
 mod scanner;
 
 use crate::cli::run_cli_scan;
-use crate::models::{Cli, Config, ScanSummary};
+use crate::discover::discover;
+use crate::models::{Cli, ParsedCommand, ScanSummary};
 use crate::output::print_summary;
 use crate::parser::parse_cli;
 use clap::Parser;
@@ -19,10 +21,18 @@ fn main() {
 
 fn run() -> Result<(), String> {
     let cli: Cli = Cli::parse();
-    let config: Config = parse_cli(cli)?;
-    let summary: ScanSummary = run_cli_scan(&config);
+    let command = parse_cli(cli)?;
 
-    print_summary(&summary, &config);
-
-    Ok(())
+    match command {
+        ParsedCommand::Scan(scan_config) => {
+            let summary: ScanSummary = run_cli_scan(&scan_config);
+            print_summary(&summary, &scan_config);
+            Ok(())
+        }
+        ParsedCommand::Discover(discover_config) => {
+            let results = discover(discover_config);
+            println!("{:?}", results);
+            Ok(())
+        }
+    }
 }

@@ -4,9 +4,9 @@ use std::sync::mpsc::{self, Sender};
 use std::thread::{self, available_parallelism};
 use std::time::Duration;
 
-use crate::models::{Config, ScanEvent};
+use crate::models::{ScanConfig, ScanEvent};
 
-pub fn scan_ports<F>(config: &Config, mut on_event: F) -> Vec<u16>
+pub fn scan_ports<F>(config: &ScanConfig, mut on_event: F) -> Vec<u16>
 where
     F: FnMut(ScanEvent),
 {
@@ -56,7 +56,7 @@ fn choose_thread_count(total_ports: usize) -> usize {
     min(total_ports, cpu_count * 32)
 }
 
-fn scan_port(ip_port: &SocketAddr, timeout: Duration) -> bool {
+pub fn scan_port(ip_port: &SocketAddr, timeout: Duration) -> bool {
     TcpStream::connect_timeout(ip_port, timeout).is_ok()
 }
 

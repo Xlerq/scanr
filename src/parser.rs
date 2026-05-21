@@ -1,14 +1,52 @@
-use crate::models::{Cli, Config};
+use ipnet::IpNet;
+use std::net::IpAddr;
 
-pub fn parse_cli(cli: Cli) -> Result<Config, String> {
-    let parsed_ports: Vec<u16> = parse_ports(&cli.ports)?;
-    let config: Config = Config {
-        ip: cli.ip,
-        ports: parsed_ports,
-        speed: cli.speed.into(),
-        format: cli.format,
-    };
-    Ok(config)
+use crate::models::{Cli, CliCommand, DiscoverConfig, ParsedCommand, ScanConfig};
+
+pub fn parse_cli(cli: Cli) -> Result<ParsedCommand, String> {
+    let command = cli.command;
+
+    match command {
+        CliCommand::Scan(scan_args) => {
+            let parsed_ports: Vec<u16> = parse_ports(&scan_args.ports)?;
+            let scan_config: ScanConfig = ScanConfig {
+                ip: scan_args.ip,
+                ports: parsed_ports,
+                speed: scan_args.speed.into(),
+                format: scan_args.format,
+            };
+            Ok(ParsedCommand::Scan(scan_config))
+        }
+        CliCommand::Discover(discover_args) => {
+            let ips = parse_cidr(&discover_args.cidr)?;
+            let discover_config: DiscoverConfig = DiscoverConfig {
+                ips,
+                speed: discover_args.speed.into(),
+                format: discover_args.format,
+            };
+            Ok(ParsedCommand::Discover(discover_config))
+        }
+    }
+}
+
+fn parse_cidr(text: &str) -> Result<Vec<IpAddr>, String> {
+    let network: IpNet = text
+        .trim()
+        .parse()
+        .map_err(|_| "Error: invalid CIDR".to_string())?;
+
+    match network {
+        IpNet::V4(ipv4_network) => {
+            if ipv4_network.prefix_len() < 24 {
+                return Err("Error: CIDR range is to large, use /24 or smaller for now".to_string());
+            }
+
+            let ips: Vec<IpAddr> = ipv4_network.hosts().map(IpAddr::V4).collect();
+            Ok(ips)
+        }
+
+        IpNet::V6(_) => Err("Error: IPv6 discovery is not supported yet".to_string()),
+    }
 }
 
 fn parse_ports(arg: &str) -> Result<Vec<u16>, String> {

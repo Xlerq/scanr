@@ -1,10 +1,10 @@
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
 
-use crate::models::{Config, OutputFormat, ScanEvent, ScanSummary};
+use crate::models::{OutputFormat, ScanConfig, ScanEvent, ScanSummary};
 use crate::scanner::scan_ports;
 
-pub fn run_cli_scan(config: &Config) -> ScanSummary {
+pub fn run_cli_scan(config: &ScanConfig) -> ScanSummary {
     let timer: Instant = Instant::now();
 
     let total_ports: usize = config.ports.len();

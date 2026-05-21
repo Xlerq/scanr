@@ -1,8 +1,8 @@
-use crate::models::{Config, OutputFormat, ScanSummary};
+use crate::models::{OutputFormat, ScanConfig, ScanSummary};
 use serde::Serialize;
 use std::io::{self, Write};
 
-pub fn print_summary(summary: &ScanSummary, config: &Config) {
+pub fn print_summary(summary: &ScanSummary, config: &ScanConfig) {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
@@ -12,7 +12,7 @@ pub fn print_summary(summary: &ScanSummary, config: &Config) {
 fn write_summary<W: Write>(
     writer: &mut W,
     summary: &ScanSummary,
-    config: &Config,
+    config: &ScanConfig,
 ) -> io::Result<()> {
     match config.format {
         OutputFormat::Table => write_table_summary(writer, summary, config),
@@ -24,7 +24,7 @@ fn write_summary<W: Write>(
 fn write_table_summary<W: Write>(
     writer: &mut W,
     summary: &ScanSummary,
-    config: &Config,
+    config: &ScanConfig,
 ) -> io::Result<()> {
     if summary.open_ports.is_empty() {
         writeln!(writer, "\n\nNo open ports found")?;
@@ -61,7 +61,7 @@ fn write_table_summary<W: Write>(
 fn write_csv_summary<W: Write>(
     writer: &mut W,
     summary: &ScanSummary,
-    config: &Config,
+    config: &ScanConfig,
 ) -> io::Result<()> {
     writeln!(writer, "ip,port,service")?;
 
@@ -94,7 +94,7 @@ struct JsonOpenPort {
 fn write_json_summary<W: Write>(
     writer: &mut W,
     summary: &ScanSummary,
-    config: &Config,
+    config: &ScanConfig,
 ) -> io::Result<()> {
     let mut open_ports: Vec<JsonOpenPort> = Vec::with_capacity(summary.open_ports.len());
 
@@ -249,8 +249,8 @@ mod tests {
 
     use super::*;
 
-    fn test_config(format: OutputFormat) -> Config {
-        Config {
+    fn test_config(format: OutputFormat) -> ScanConfig {
+        ScanConfig {
             ip: "127.0.0.1".parse().unwrap(),
             ports: vec![22, 65000],
             speed: ScanSpeed::Normal,
