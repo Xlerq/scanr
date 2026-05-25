@@ -1,7 +1,11 @@
 use std::io::{self, Write};
+use std::net::IpAddr;
 use std::time::{Duration, Instant};
 
-use crate::models::{OutputFormat, ScanConfig, ScanEvent, ScanSummary};
+use crate::discover::discover;
+use crate::models::{
+    DiscoverConfig, DiscoverSummary, OutputFormat, ScanConfig, ScanEvent, ScanSummary,
+};
 use crate::scanner::scan_ports;
 
 pub fn run_cli_scan(config: &ScanConfig) -> ScanSummary {
@@ -36,6 +40,22 @@ pub fn run_cli_scan(config: &ScanConfig) -> ScanSummary {
 
     ScanSummary {
         open_ports,
+        elapsed,
+    }
+}
+
+pub fn run_cli_discovery(config: &DiscoverConfig) -> DiscoverSummary {
+    let timer: Instant = Instant::now();
+
+    let total_ips_number: usize = config.ips.len();
+
+    let alive_hosts: Vec<IpAddr> = discover(config);
+
+    let elapsed: Duration = timer.elapsed();
+
+    DiscoverSummary {
+        alive_hosts,
+        scanned_hosts: total_ips_number,
         elapsed,
     }
 }

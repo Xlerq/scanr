@@ -79,6 +79,12 @@ pub struct ScanSummary {
     pub elapsed: Duration,
 }
 
+pub struct DiscoverSummary {
+    pub alive_hosts: Vec<IpAddr>,
+    pub scanned_hosts: usize,
+    pub elapsed: Duration,
+}
+
 pub enum ScanEvent {
     PortScanned,
     PortOpen,

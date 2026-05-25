@@ -109,7 +109,7 @@ fn check_ports(s: &u16, e: &u16) -> Result<(), String> {
 mod tests {
     use clap::Parser;
 
-    use crate::models::{Cli, ScanSpeed};
+    use crate::models::{Cli, ParsedCommand, ScanConfig, ScanSpeed};
 
     use super::*;
 
@@ -117,10 +117,18 @@ mod tests {
         Cli::try_parse_from(args).expect("clap should accept valid arguments")
     }
 
+    fn parse_test_scan_config(args: &[&str]) -> ScanConfig {
+        let cli = parse_test_cli(args);
+
+        match parse_cli(cli).expect("parser should accept valid scan command") {
+            ParsedCommand::Scan(config) => config,
+            ParsedCommand::Discover(_) => panic!("parser should return scan config"),
+        }
+    }
+
     #[test]
     fn parses_cli_into_config_with_single_port() {
-        let cli = parse_test_cli(&["scanr", "127.0.0.1", "67"]);
-        let config = parse_cli(cli).expect("parser should output valid config");
+        let config = parse_test_scan_config(&["scanr", "scan", "127.0.0.1", "67"]);
 
         assert_eq!(config.ip.to_string(), "127.0.0.1");
         assert_eq!(config.ports, vec![67]);
@@ -174,7 +182,7 @@ mod tests {
 
     #[test]
     fn clap_rejects_invalid_ip() {
-        let result = Cli::try_parse_from(["scanr", "19c.168.0.10.", "80"]);
+        let result = Cli::try_parse_from(["scanr", "scan", "19c.168.0.10.", "80"]);
 
         assert!(result.is_err());
     }
@@ -201,15 +209,15 @@ mod tests {
 
     #[test]
     fn clap_rejects_extra_positional_argument() {
-        let result = Cli::try_parse_from(["scanr", "127.0.0.1", "80", "443"]);
+        let result = Cli::try_parse_from(["scanr", "scan", "127.0.0.1", "80", "443"]);
 
         assert!(result.is_err());
     }
 
     #[test]
     fn parses_fast_speed_flag() {
-        let cli = parse_test_cli(&["scanr", "127.0.0.1", "80", "--speed", "fast"]);
-        let config = parse_cli(cli).expect("parser should accept fast scan speed");
+        let config =
+            parse_test_scan_config(&["scanr", "scan", "127.0.0.1", "80", "--speed", "fast"]);
 
         match config.speed {
             ScanSpeed::Fast => {}
@@ -219,8 +227,8 @@ mod tests {
 
     #[test]
     fn parses_thorough_speed_flag_with_range() {
-        let cli = parse_test_cli(&["scanr", "127.0.0.1", "20-25", "--speed", "thorough"]);
-        let config = parse_cli(cli).expect("parser should accept thorough scan speed");
+        let config =
+            parse_test_scan_config(&["scanr", "scan", "127.0.0.1", "20-25", "--speed", "thorough"]);
 
         assert_eq!(config.ports, vec![20, 21, 22, 23, 24, 25]);
 
@@ -232,14 +240,14 @@ mod tests {
 
     #[test]
     fn clap_rejects_invalid_speed_flag_value() {
-        let result = Cli::try_parse_from(["scanr", "127.0.0.1", "80", "--speed", "slow"]);
+        let result = Cli::try_parse_from(["scanr", "scan", "127.0.0.1", "80", "--speed", "slow"]);
 
         assert!(result.is_err());
     }
 
     #[test]
     fn clap_rejects_missing_speed_flag_value() {
-        let result = Cli::try_parse_from(["scanr", "127.0.0.1", "80", "--speed"]);
+        let result = Cli::try_parse_from(["scanr", "scan", "127.0.0.1", "80", "--speed"]);
 
         assert!(result.is_err());
     }

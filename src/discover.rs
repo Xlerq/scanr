@@ -3,38 +3,33 @@ use crate::scanner::scan_port;
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 
-pub fn discover(discover_config: DiscoverConfig) -> Vec<SocketAddr> {
-    let ips: Vec<IpAddr> = discover_config.ips;
+pub fn discover(discover_config: &DiscoverConfig) -> Vec<IpAddr> {
     let timeout = discover_config.speed.timeout();
 
-    let mut results: Vec<SocketAddr> = Vec::new();
+    let mut results: Vec<IpAddr> = Vec::new();
 
-    for ip in ips {
-        let mut ip_results: Vec<SocketAddr> = discover_ip(ip, timeout);
-        results.append(&mut ip_results);
-    }
-    results
-}
-
-fn discover_ip(ip: IpAddr, timeout: Duration) -> Vec<SocketAddr> {
-    let mut results = Vec::new();
-
-    for port in TCP_FALLBACK_PORTS {
-        if let Some(port) = tcp_probe(ip, port, timeout) {
-            results.push(SocketAddr::new(ip, port));
+    for ip in discover_config.ips.iter().copied() {
+        if let Some(ip_result) = discover_ip(ip, timeout) {
+            results.push(ip_result);
         }
     }
-
     results
 }
 
-fn tcp_probe(ip: IpAddr, port: u16, timeout: Duration) -> Option<u16> {
-    let socket = SocketAddr::new(ip, port);
-    if scan_port(&socket, timeout) {
-        Some(port)
-    } else {
-        None
+fn discover_ip(ip: IpAddr, timeout: Duration) -> Option<IpAddr> {
+    for port in TCP_FALLBACK_PORTS {
+        let is_active: bool = tcp_probe(ip, port, timeout);
+
+        if is_active {
+            return Some(ip);
+        }
     }
+    None
 }
 
-const TCP_FALLBACK_PORTS: [u16; 9] = [22, 53, 80, 135, 139, 443, 3389, 8080, 9100];
+fn tcp_probe(ip: IpAddr, port: u16, timeout: Duration) -> bool {
+    let socket = SocketAddr::new(ip, port);
+    scan_port(&socket, timeout)
+}
+
+const TCP_FALLBACK_PORTS: [u16; 9] = [80, 443, 22, 445, 53, 3389, 8080, 139, 9100];
