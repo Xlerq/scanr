@@ -1,19 +1,72 @@
-use crate::models::DiscoverConfig;
+use crate::models::{DiscoverConfig, DiscoverEvent};
 use crate::scanner::scan_port;
+use std::cmp::min;
 use std::net::{IpAddr, SocketAddr};
+use std::sync::mpsc::{self, Sender};
+use std::thread::{self, available_parallelism};
 use std::time::Duration;
 
-pub fn discover(discover_config: &DiscoverConfig) -> Vec<IpAddr> {
+pub fn discover<F>(discover_config: &DiscoverConfig, mut on_event: F) -> Vec<IpAddr>
+where
+    F: FnMut(DiscoverEvent),
+{
     let timeout = discover_config.speed.timeout();
 
-    let mut results: Vec<IpAddr> = Vec::new();
+    let mut handles = Vec::new();
+    let mut discovered_ips: Vec<IpAddr> = Vec::new();
 
-    for ip in discover_config.ips.iter().copied() {
-        if let Some(ip_result) = discover_ip(ip, timeout) {
-            results.push(ip_result);
-        }
+    let chunks: Vec<Vec<IpAddr>> = create_chunks(&discover_config.ips);
+    let (tx, rx) = mpsc::channel();
+
+    for chunk in chunks {
+        let tx_clone = tx.clone();
+        let handle = thread::spawn(move || discover_chunk(chunk, tx_clone, timeout));
+        handles.push(handle);
     }
-    results
+
+    drop(tx);
+
+    for event in rx {
+        on_event(event);
+    }
+
+    for handle in handles {
+        let mut discovered_chunk = handle.join().unwrap();
+        discovered_ips.append(&mut discovered_chunk);
+    }
+
+    discovered_ips
+}
+
+fn create_chunks(ips: &[IpAddr]) -> Vec<Vec<IpAddr>> {
+    if ips.is_empty() {
+        return vec![];
+    }
+
+    let total_ips: usize = ips.len();
+    let real_thread_count = choose_thread_count(total_ips);
+
+    let chunk_len: usize = total_ips.div_ceil(real_thread_count);
+
+    ips.chunks(chunk_len).map(|chunk| chunk.to_vec()).collect()
+}
+
+fn choose_thread_count(total_ips: usize) -> usize {
+    let cpu_count: usize = available_parallelism().map(|n| n.get()).unwrap_or(4);
+    min(total_ips, cpu_count * 32)
+}
+
+fn discover_chunk(chunk: Vec<IpAddr>, tx: Sender<DiscoverEvent>, timeout: Duration) -> Vec<IpAddr> {
+    let mut valid_ips: Vec<IpAddr> = Vec::new();
+
+    for ip in chunk {
+        if let Some(ip) = discover_ip(ip, timeout) {
+            tx.send(DiscoverEvent::HostUp).unwrap();
+            valid_ips.push(ip);
+        }
+        tx.send(DiscoverEvent::HostScanned).unwrap();
+    }
+    valid_ips
 }
 
 fn discover_ip(ip: IpAddr, timeout: Duration) -> Option<IpAddr> {
@@ -33,3 +86,45 @@ fn tcp_probe(ip: IpAddr, port: u16, timeout: Duration) -> bool {
 }
 
 const TCP_FALLBACK_PORTS: [u16; 9] = [80, 443, 22, 445, 53, 3389, 8080, 139, 9100];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ip(text: &str) -> IpAddr {
+        text.parse().unwrap()
+    }
+
+    #[test]
+    fn create_chunks_returns_empty_vec_for_empty_input() {
+        let chunks = create_chunks(&[]);
+
+        assert!(chunks.is_empty());
+    }
+
+    #[test]
+    fn create_chunks_preserves_all_ips() {
+        let ips = vec![
+            ip("192.168.1.1"),
+            ip("192.168.1.2"),
+            ip("192.168.1.3"),
+            ip("192.168.1.4"),
+            ip("192.168.1.5"),
+        ];
+
+        let chunks = create_chunks(&ips);
+        let flattened_ips: Vec<IpAddr> = chunks.into_iter().flatten().collect();
+
+        assert_eq!(flattened_ips, ips);
+    }
+
+    #[test]
+    fn create_chunks_does_not_create_empty_chunks_for_non_empty_input() {
+        let ips = vec![ip("192.168.1.1"), ip("192.168.1.2")];
+
+        let chunks = create_chunks(&ips);
+
+        assert!(!chunks.is_empty());
+        assert!(chunks.iter().all(|chunk| !chunk.is_empty()));
+    }
+}

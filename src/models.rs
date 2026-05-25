@@ -90,6 +90,11 @@ pub enum ScanEvent {
     PortOpen,
 }
 
+pub enum DiscoverEvent {
+    HostScanned,
+    HostUp,
+}
+
 pub enum ScanSpeed {
     Fast,
     Normal,
