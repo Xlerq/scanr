@@ -9,8 +9,11 @@ use crate::models::{
 };
 use crate::scanner::scan_ports;
 
+const FRAME_BUDGET: Duration = Duration::from_millis(16);
+
 pub fn run_cli_scan(config: &ScanConfig) -> ScanSummary {
     let timer: Instant = Instant::now();
+    let mut last_draw: Instant = Instant::now();
 
     let total_ports: usize = config.ports.len();
     let mut scanned_count: usize = usize::MIN;
@@ -23,13 +26,14 @@ pub fn run_cli_scan(config: &ScanConfig) -> ScanSummary {
         ScanEvent::PortScanned => {
             scanned_count += 1;
 
-            if show_progress && is_terminal {
+            if show_progress && is_terminal && last_draw.elapsed() >= FRAME_BUDGET {
                 print!(
                     "\r{}",
                     render_progress(scanned_count, total_ports, live_open_count)
                 );
 
                 io::stdout().flush().unwrap();
+                last_draw = Instant::now();
             }
         }
 
@@ -38,6 +42,13 @@ pub fn run_cli_scan(config: &ScanConfig) -> ScanSummary {
         }
     });
 
+    if show_progress && is_terminal {
+        print!(
+            "\r{}",
+            render_progress(scanned_count, total_ports, live_open_count)
+        );
+        io::stdout().flush().unwrap();
+    }
     let elapsed: Duration = timer.elapsed();
 
     ScanSummary {
@@ -48,6 +59,7 @@ pub fn run_cli_scan(config: &ScanConfig) -> ScanSummary {
 
 pub fn run_cli_discovery(config: &DiscoverConfig) -> DiscoverSummary {
     let timer: Instant = Instant::now();
+    let mut last_draw: Instant = Instant::now();
 
     let total_ips_number: usize = config.ips.len();
     let mut discover_count: usize = usize::MIN;
@@ -59,19 +71,28 @@ pub fn run_cli_discovery(config: &DiscoverConfig) -> DiscoverSummary {
     let alive_hosts: Vec<IpAddr> = discover(config, |event| match event {
         DiscoverEvent::HostScanned => {
             discover_count += 1;
-            if show_progress && is_terminal {
+            if show_progress && is_terminal && last_draw.elapsed() >= FRAME_BUDGET {
                 print!(
                     "\r{}",
                     render_progress(discover_count, total_ips_number, live_hosts_up)
                 );
 
                 io::stdout().flush().unwrap();
+                last_draw = Instant::now();
             }
         }
         DiscoverEvent::HostUp => {
             live_hosts_up += 1;
         }
     });
+
+    if show_progress && is_terminal {
+        print!(
+            "\r{}",
+            render_progress(discover_count, total_ips_number, live_hosts_up)
+        );
+        io::stdout().flush().unwrap();
+    }
 
     let elapsed: Duration = timer.elapsed();
 
