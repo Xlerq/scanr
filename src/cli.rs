@@ -1,4 +1,4 @@
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::net::IpAddr;
 use std::time::{Duration, Instant};
 
@@ -17,12 +17,13 @@ pub fn run_cli_scan(config: &ScanConfig) -> ScanSummary {
     let mut live_open_count: usize = usize::MIN;
 
     let show_progress: bool = matches!(config.format, OutputFormat::Table);
+    let is_terminal: bool = io::stdout().is_terminal();
 
     let open_ports: Vec<u16> = scan_ports(config, |event| match event {
         ScanEvent::PortScanned => {
             scanned_count += 1;
 
-            if show_progress {
+            if show_progress && is_terminal {
                 print!(
                     "\r{}",
                     render_progress(scanned_count, total_ports, live_open_count)
@@ -53,11 +54,12 @@ pub fn run_cli_discovery(config: &DiscoverConfig) -> DiscoverSummary {
     let mut live_hosts_up: usize = usize::MIN;
 
     let show_progress: bool = matches!(config.format, OutputFormat::Table);
+    let is_terminal: bool = io::stdout().is_terminal();
 
     let alive_hosts: Vec<IpAddr> = discover(config, |event| match event {
         DiscoverEvent::HostScanned => {
             discover_count += 1;
-            if show_progress {
+            if show_progress && is_terminal {
                 print!(
                     "\r{}",
                     render_progress(discover_count, total_ips_number, live_hosts_up)

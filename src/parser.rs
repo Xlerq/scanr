@@ -3,6 +3,8 @@ use std::net::IpAddr;
 
 use crate::models::{Cli, CliCommand, DiscoverConfig, ParsedCommand, ScanConfig};
 
+const MIN_DISCOVERY_PREFIX_LEN: u8 = 16;
+
 pub fn parse_cli(cli: Cli) -> Result<ParsedCommand, String> {
     let command = cli.command;
 
@@ -37,8 +39,8 @@ fn parse_cidr(text: &str) -> Result<Vec<IpAddr>, String> {
 
     match network {
         IpNet::V4(ipv4_network) => {
-            if ipv4_network.prefix_len() < 24 {
-                return Err("Error: CIDR range is to large, use /24 or smaller for now".to_string());
+            if ipv4_network.prefix_len() < MIN_DISCOVERY_PREFIX_LEN {
+                return Err("Error: CIDR range is to large, use smaller for now".to_string());
             }
 
             let ips: Vec<IpAddr> = ipv4_network.hosts().map(IpAddr::V4).collect();

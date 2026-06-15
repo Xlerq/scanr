@@ -53,7 +53,7 @@ fn create_chunks(ports: Vec<u16>) -> Vec<Vec<u16>> {
 
 fn choose_thread_count(total_ports: usize) -> usize {
     let cpu_count: usize = available_parallelism().map(|n| n.get()).unwrap_or(4);
-    min(total_ports, cpu_count * 32)
+    min(total_ports, cpu_count * 512)
 }
 
 pub fn scan_port(ip_port: &SocketAddr, timeout: Duration) -> bool {
