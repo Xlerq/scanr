@@ -1,30 +1,38 @@
-use crate::models::{Config, OutputFormat, ScanSummary};
+use crate::models::{DiscoverConfig, DiscoverSummary, OutputFormat, ScanConfig, ScanSummary};
 use serde::Serialize;
 use std::io::{self, Write};
 
-pub fn print_summary(summary: &ScanSummary, config: &Config) {
+pub fn print_scan_summary(summary: &ScanSummary, config: &ScanConfig) {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
-    write_summary(&mut handle, summary, config).expect("failed to write scan summary");
+    write_scan_summary(&mut handle, summary, config).expect("failed to write scan summary");
 }
 
-fn write_summary<W: Write>(
+pub fn print_discovery_summary(summary: &DiscoverSummary, config: &DiscoverConfig) {
+    let stdout = io::stdout();
+    let mut handle = stdout.lock();
+
+    write_discovery_summary(&mut handle, summary, config)
+        .expect("failed to write discovery summary");
+}
+
+fn write_scan_summary<W: Write>(
     writer: &mut W,
     summary: &ScanSummary,
-    config: &Config,
+    config: &ScanConfig,
 ) -> io::Result<()> {
     match config.format {
-        OutputFormat::Table => write_table_summary(writer, summary, config),
-        OutputFormat::Json => write_json_summary(writer, summary, config),
-        OutputFormat::Csv => write_csv_summary(writer, summary, config),
+        OutputFormat::Table => write_scan_table_summary(writer, summary, config),
+        OutputFormat::Json => write_scan_json_summary(writer, summary, config),
+        OutputFormat::Csv => write_scan_csv_summary(writer, summary, config),
     }
 }
 
-fn write_table_summary<W: Write>(
+fn write_scan_table_summary<W: Write>(
     writer: &mut W,
     summary: &ScanSummary,
-    config: &Config,
+    config: &ScanConfig,
 ) -> io::Result<()> {
     if summary.open_ports.is_empty() {
         writeln!(writer, "\n\nNo open ports found")?;
@@ -58,10 +66,10 @@ fn write_table_summary<W: Write>(
     Ok(())
 }
 
-fn write_csv_summary<W: Write>(
+fn write_scan_csv_summary<W: Write>(
     writer: &mut W,
     summary: &ScanSummary,
-    config: &Config,
+    config: &ScanConfig,
 ) -> io::Result<()> {
     writeln!(writer, "ip,port,service")?;
 
@@ -91,10 +99,10 @@ struct JsonOpenPort {
     service: Option<&'static str>,
 }
 
-fn write_json_summary<W: Write>(
+fn write_scan_json_summary<W: Write>(
     writer: &mut W,
     summary: &ScanSummary,
-    config: &Config,
+    config: &ScanConfig,
 ) -> io::Result<()> {
     let mut open_ports: Vec<JsonOpenPort> = Vec::with_capacity(summary.open_ports.len());
 
@@ -112,6 +120,81 @@ fn write_json_summary<W: Write>(
         scanned_ports: config.ports.len(),
         elapsed_seconds: summary.elapsed.as_secs_f64(),
         open_ports,
+    };
+
+    serde_json::to_writer_pretty(writer, &json_summary).map_err(io::Error::other)?;
+    Ok(())
+}
+
+fn write_discovery_summary<W: Write>(
+    writer: &mut W,
+    summary: &DiscoverSummary,
+    config: &DiscoverConfig,
+) -> io::Result<()> {
+    match config.format {
+        OutputFormat::Table => write_discovery_table_summary(writer, summary),
+        OutputFormat::Json => write_discovery_json_summary(writer, summary),
+        OutputFormat::Csv => write_discovery_csv_summary(writer, summary),
+    }
+}
+
+fn write_discovery_table_summary<W: Write>(
+    writer: &mut W,
+    summary: &DiscoverSummary,
+) -> io::Result<()> {
+    if summary.alive_hosts.is_empty() {
+        writeln!(writer, "\n\nNo alive hosts found")?;
+    } else {
+        writeln!(writer, "\n\nHOST")?;
+        writeln!(writer, "===============")?;
+
+        for host in summary.alive_hosts.iter() {
+            writeln!(writer, "{}", host)?;
+        }
+    }
+
+    writeln!(writer, "===============\n")?;
+    writeln!(writer, "Scanned: {} hosts", summary.scanned_hosts)?;
+    writeln!(writer, "Alive: {} hosts", summary.alive_hosts.len())?;
+    writeln!(writer, "Elapsed: {} s", summary.elapsed.as_secs_f32())?;
+
+    Ok(())
+}
+
+fn write_discovery_csv_summary<W: Write>(
+    writer: &mut W,
+    summary: &DiscoverSummary,
+) -> io::Result<()> {
+    writeln!(writer, "ip")?;
+
+    for host in summary.alive_hosts.iter() {
+        writeln!(writer, "{}", host)?;
+    }
+
+    Ok(())
+}
+
+#[derive(Serialize)]
+struct JsonDiscoverySummary {
+    scanned_hosts: usize,
+    elapsed_seconds: f64,
+    alive_hosts: Vec<String>,
+}
+
+fn write_discovery_json_summary<W: Write>(
+    writer: &mut W,
+    summary: &DiscoverSummary,
+) -> io::Result<()> {
+    let alive_hosts: Vec<String> = summary
+        .alive_hosts
+        .iter()
+        .map(|host| host.to_string())
+        .collect();
+
+    let json_summary = JsonDiscoverySummary {
+        scanned_hosts: summary.scanned_hosts,
+        elapsed_seconds: summary.elapsed.as_secs_f64(),
+        alive_hosts,
     };
 
     serde_json::to_writer_pretty(writer, &json_summary).map_err(io::Error::other)?;
@@ -249,8 +332,8 @@ mod tests {
 
     use super::*;
 
-    fn test_config(format: OutputFormat) -> Config {
-        Config {
+    fn test_config(format: OutputFormat) -> ScanConfig {
+        ScanConfig {
             ip: "127.0.0.1".parse().unwrap(),
             ports: vec![22, 65000],
             speed: ScanSpeed::Normal,
@@ -266,12 +349,12 @@ mod tests {
     }
 
     #[test]
-    fn writes_valid_json_summary() {
+    fn write_scans_valid_json_summary() {
         let config = test_config(OutputFormat::Json);
         let summary = test_summary();
         let mut output = Vec::new();
 
-        write_json_summary(&mut output, &summary, &config).unwrap();
+        write_scan_json_summary(&mut output, &summary, &config).unwrap();
 
         let json: Value = serde_json::from_slice(&output).unwrap();
         assert_eq!(json["ip"], "127.0.0.1");
@@ -284,12 +367,12 @@ mod tests {
     }
 
     #[test]
-    fn writes_csv_summary_with_service_column() {
+    fn write_scans_csv_summary_with_service_column() {
         let config = test_config(OutputFormat::Csv);
         let summary = test_summary();
         let mut output = Vec::new();
 
-        write_csv_summary(&mut output, &summary, &config).unwrap();
+        write_scan_csv_summary(&mut output, &summary, &config).unwrap();
 
         let text = String::from_utf8(output).unwrap();
         assert!(text.contains("ip,port,service\n"));
