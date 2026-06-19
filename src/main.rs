@@ -1,3 +1,4 @@
+mod chunks;
 mod cli;
 mod discover;
 mod models;

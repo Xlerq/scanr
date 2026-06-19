@@ -1,9 +1,10 @@
+use crate::chunks::create_chunks;
 use crate::models::{DiscoverConfig, DiscoverEvent};
 use crate::scanner::scan_port;
-use std::cmp::min;
+
 use std::net::{IpAddr, SocketAddr};
 use std::sync::mpsc::{self, Sender};
-use std::thread::{self, available_parallelism};
+use std::thread;
 use std::time::Duration;
 
 pub fn discover<F>(discover_config: &DiscoverConfig, mut on_event: F) -> Vec<IpAddr>
@@ -36,24 +37,6 @@ where
     }
 
     discovered_ips
-}
-
-fn create_chunks(ips: &[IpAddr]) -> Vec<Vec<IpAddr>> {
-    if ips.is_empty() {
-        return vec![];
-    }
-
-    let total_ips: usize = ips.len();
-    let real_thread_count = choose_thread_count(total_ips);
-
-    let chunk_len: usize = total_ips.div_ceil(real_thread_count);
-
-    ips.chunks(chunk_len).map(|chunk| chunk.to_vec()).collect()
-}
-
-fn choose_thread_count(total_ips: usize) -> usize {
-    let cpu_count: usize = available_parallelism().map(|n| n.get()).unwrap_or(4);
-    min(total_ips, cpu_count * 32)
 }
 
 fn discover_chunk(chunk: Vec<IpAddr>, tx: Sender<DiscoverEvent>, timeout: Duration) -> Vec<IpAddr> {
@@ -96,15 +79,8 @@ mod tests {
     }
 
     #[test]
-    fn create_chunks_returns_empty_vec_for_empty_input() {
-        let chunks = create_chunks(&[]);
-
-        assert!(chunks.is_empty());
-    }
-
-    #[test]
     fn create_chunks_preserves_all_ips() {
-        let ips = vec![
+        let ips = &[
             ip("192.168.1.1"),
             ip("192.168.1.2"),
             ip("192.168.1.3"),
@@ -112,7 +88,7 @@ mod tests {
             ip("192.168.1.5"),
         ];
 
-        let chunks = create_chunks(&ips);
+        let chunks = create_chunks(ips);
         let flattened_ips: Vec<IpAddr> = chunks.into_iter().flatten().collect();
 
         assert_eq!(flattened_ips, ips);
