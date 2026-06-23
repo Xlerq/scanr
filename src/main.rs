@@ -7,10 +7,10 @@ mod output;
 mod parser;
 mod scanner;
 
-use crate::cli::{run_cli_discovery, run_cli_scan};
 use crate::args::Cli;
+use crate::cli::{run_cli_discovery, run_cli_scan};
 use crate::config::ParsedCommand;
-use crate::output::{print_discovery_summary, print_scan_summary, ScanSummary};
+use crate::output::{ScanSummary, print_discovery_summary, print_scan_summary};
 use crate::parser::parse_cli;
 use clap::Parser;
 
