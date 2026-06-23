@@ -55,13 +55,13 @@ Use `--speed <SPEED>` to select a speed preset. The default is `normal`.
 Scanner is able to scan full port range in 3s.
 
 <p align="center">
-  <img src="./assets/Scan_full_range.png" alt="Scan of 65535 ports" width="85%">
+  <img src="./assets/Scan_full_range.png" alt="Scan of 65535 ports" width="65%">
 </p>
 
 Scanner is also able to discover hosts.
 
 <p align="center">
-  <img src="./assets/Discover.png" alt="Discover of alive hosts" width="85%">
+  <img src="./assets/Discover.png" alt="Discover of alive hosts" width="65%">
 </p>
 
 ## Build
