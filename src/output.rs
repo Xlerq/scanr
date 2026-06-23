@@ -1,6 +1,19 @@
-use crate::models::{DiscoverConfig, DiscoverSummary, OutputFormat, ScanConfig, ScanSummary};
+use crate::config::{DiscoverConfig, OutputFormat, ScanConfig};
 use serde::Serialize;
 use std::io::{self, Write};
+use std::net::IpAddr;
+use std::time::Duration;
+
+pub struct ScanSummary {
+    pub open_ports: Vec<u16>,
+    pub elapsed: Duration,
+}
+
+pub struct DiscoverSummary {
+    pub alive_hosts: Vec<IpAddr>,
+    pub scanned_hosts: usize,
+    pub elapsed: Duration,
+}
 
 pub fn print_scan_summary(summary: &ScanSummary, config: &ScanConfig) {
     let stdout = io::stdout();
@@ -328,7 +341,7 @@ mod tests {
 
     use serde_json::Value;
 
-    use crate::models::{OutputFormat, ScanSpeed};
+    use crate::config::{OutputFormat, ScanSpeed};
 
     use super::*;
 

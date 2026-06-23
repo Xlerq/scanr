@@ -1,7 +1,8 @@
 use ipnet::IpNet;
 use std::net::IpAddr;
 
-use crate::models::{Cli, CliCommand, DiscoverConfig, ParsedCommand, ScanConfig};
+use crate::args::{Cli, CliCommand};
+use crate::config::{DiscoverConfig, ParsedCommand, ScanConfig};
 
 const MIN_DISCOVERY_PREFIX_LEN: u8 = 16;
 
@@ -111,7 +112,8 @@ fn check_ports(s: &u16, e: &u16) -> Result<(), String> {
 mod tests {
     use clap::Parser;
 
-    use crate::models::{Cli, ParsedCommand, ScanConfig, ScanSpeed};
+    use crate::args::Cli;
+    use crate::config::{ParsedCommand, ScanConfig, ScanSpeed};
 
     use super::*;
 
