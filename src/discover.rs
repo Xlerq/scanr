@@ -1,5 +1,5 @@
 use crate::chunks::create_chunks;
-use crate::models::{DiscoverConfig, DiscoverEvent};
+use crate::models::{DiscoverConfig, DiscoverEvent, TcpResult};
 use crate::scanner::scan_port;
 
 use std::net::{IpAddr, SocketAddr};
@@ -65,7 +65,10 @@ fn discover_ip(ip: IpAddr, timeout: Duration) -> Option<IpAddr> {
 
 fn tcp_probe(ip: IpAddr, port: u16, timeout: Duration) -> bool {
     let socket = SocketAddr::new(ip, port);
-    scan_port(&socket, timeout)
+    match scan_port(&socket, timeout) {
+        TcpResult::PortOpen | TcpResult::PortClosed => true,
+        TcpResult::NoResponse => false,
+    }
 }
 
 const TCP_FALLBACK_PORTS: [u16; 9] = [80, 443, 22, 445, 53, 3389, 8080, 139, 9100];

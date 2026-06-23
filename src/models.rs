@@ -90,6 +90,12 @@ pub enum ScanEvent {
     PortOpen,
 }
 
+pub enum TcpResult {
+    PortOpen,
+    PortClosed,
+    NoResponse,
+}
+
 pub enum DiscoverEvent {
     HostScanned,
     HostUp,

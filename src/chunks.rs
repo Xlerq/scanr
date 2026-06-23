@@ -22,7 +22,7 @@ where
 
 fn choose_thread_count(total_ports: usize) -> usize {
     let cpu_count: usize = available_parallelism().map(|n| n.get()).unwrap_or(4);
-    min(total_ports, cpu_count * 252)
+    min(total_ports, cpu_count * 256)
 }
 
 #[cfg(test)]

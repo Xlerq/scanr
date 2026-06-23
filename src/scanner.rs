@@ -1,10 +1,11 @@
+use std::io::ErrorKind;
 use std::net::{IpAddr, SocketAddr, TcpStream};
 use std::sync::mpsc::{self, Sender};
 use std::thread;
 use std::time::Duration;
 
 use crate::chunks::create_chunks;
-use crate::models::{ScanConfig, ScanEvent};
+use crate::models::{ScanConfig, ScanEvent, TcpResult};
 
 pub fn scan_ports<F>(config: &ScanConfig, mut on_event: F) -> Vec<u16>
 where
@@ -40,8 +41,17 @@ where
     open_ports
 }
 
-pub fn scan_port(ip_port: &SocketAddr, timeout: Duration) -> bool {
-    TcpStream::connect_timeout(ip_port, timeout).is_ok()
+pub fn scan_port(ip_port: &SocketAddr, timeout: Duration) -> TcpResult {
+    match TcpStream::connect_timeout(ip_port, timeout) {
+        Ok(_) => TcpResult::PortOpen,
+        Err(e) => {
+            if e.kind() == ErrorKind::TimedOut {
+                TcpResult::NoResponse
+            } else {
+                TcpResult::PortClosed
+            }
+        }
+    }
 }
 
 fn scan_chunk(ip: IpAddr, chunk: Vec<u16>, tx: Sender<ScanEvent>, timeout: Duration) -> Vec<u16> {
@@ -49,7 +59,7 @@ fn scan_chunk(ip: IpAddr, chunk: Vec<u16>, tx: Sender<ScanEvent>, timeout: Durat
 
     for port in chunk {
         let ip_port: SocketAddr = SocketAddr::new(ip, port);
-        if scan_port(&ip_port, timeout) {
+        if matches!(scan_port(&ip_port, timeout), TcpResult::PortOpen) {
             open_ports.push(port);
             tx.send(ScanEvent::PortOpen).unwrap();
         }
@@ -64,10 +74,23 @@ mod tests {
     use std::net::TcpListener;
 
     #[test]
-    fn returns_true_when_port_is_open() {
+    fn returns_port_open_when_port_is_listening() {
         let listener: TcpListener = TcpListener::bind("127.0.0.1:0").unwrap();
         let ip_port: SocketAddr = listener.local_addr().unwrap();
         let timeout: Duration = Duration::from_millis(100);
-        assert!(scan_port(&ip_port, timeout));
+        assert!(matches!(scan_port(&ip_port, timeout), TcpResult::PortOpen));
+    }
+
+    #[test]
+    fn returns_port_closed_when_host_refuses() {
+        // Bind to grab a free port, then drop the listener so nothing is
+        // listening: connecting now yields an immediate RST (ConnectionRefused),
+        // which is proof the host is alive. This is the case the old `bool`
+        // collapsed into "down".
+        let listener: TcpListener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let ip_port: SocketAddr = listener.local_addr().unwrap();
+        drop(listener);
+        let timeout: Duration = Duration::from_millis(100);
+        assert!(matches!(scan_port(&ip_port, timeout), TcpResult::PortClosed));
     }
 }
