@@ -5,7 +5,18 @@ use std::thread;
 use std::time::Duration;
 
 use crate::chunks::create_chunks;
-use crate::models::{ScanConfig, ScanEvent, TcpResult};
+use crate::config::ScanConfig;
+
+pub enum ScanEvent {
+    PortScanned,
+    PortOpen,
+}
+
+pub enum TcpResult {
+    PortOpen,
+    PortClosed,
+    NoResponse,
+}
 
 pub fn scan_ports<F>(config: &ScanConfig, mut on_event: F) -> Vec<u16>
 where

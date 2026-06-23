@@ -2,12 +2,10 @@ use std::io::{self, IsTerminal, Write};
 use std::net::IpAddr;
 use std::time::{Duration, Instant};
 
-use crate::discover::discover;
-use crate::models::{
-    DiscoverConfig, DiscoverEvent, DiscoverSummary, OutputFormat, ScanConfig, ScanEvent,
-    ScanSummary,
-};
-use crate::scanner::scan_ports;
+use crate::config::{DiscoverConfig, OutputFormat, ScanConfig};
+use crate::discover::{discover, DiscoverEvent};
+use crate::output::{DiscoverSummary, ScanSummary};
+use crate::scanner::{scan_ports, ScanEvent};
 
 const FRAME_BUDGET: Duration = Duration::from_millis(16);
 

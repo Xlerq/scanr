@@ -1,14 +1,16 @@
+mod args;
 mod chunks;
 mod cli;
+mod config;
 mod discover;
-mod models;
 mod output;
 mod parser;
 mod scanner;
 
 use crate::cli::{run_cli_discovery, run_cli_scan};
-use crate::models::{Cli, ParsedCommand, ScanSummary};
-use crate::output::{print_discovery_summary, print_scan_summary};
+use crate::args::Cli;
+use crate::config::ParsedCommand;
+use crate::output::{print_discovery_summary, print_scan_summary, ScanSummary};
 use crate::parser::parse_cli;
 use clap::Parser;
 
