@@ -19,14 +19,10 @@ scanr [OPTIONS] <IP> <PORTS>
 ## Examples
 
 ```bash
-scanr 127.0.0.1 80
-scanr 192.168.0.10 100-1000
-scanr 127.0.0.1 22,80,443
-scanr 127.0.0.1 "22, 80, 443"
-scanr 127.0.0.1 22,80,100-120 --speed fast
-scanr 127.0.0.1 443 --speed thorough
-scanr 127.0.0.1 22,80,443 --format csv
-scanr 127.0.0.1 22,80,443 --format json
+scan 192.168.0.1 1-65535 --speed thorough
+scan 192.168.0.1 22,80,443 --format json
+discover 192.168.0.1/24 
+discover 192.168.0.1/24 --speed fast
 ```
 
 ## Port input
@@ -56,16 +52,16 @@ Use `--speed <SPEED>` to select a speed preset. The default is `normal`.
 
 ## Capabilities
 
-Scanner is able to scan 1k ports below 1 second.
+Scanner is able to scan full port range in 3s.
 
 <p align="center">
-  <img src="./assets/1000_ports.png" alt="Scan of 1000 ports" width="85%">
+  <img src="./assets/Scan_full_range.png" alt="Scan of 65535 ports" width="85%">
 </p>
 
-Scanner is able to scan 10k ports in about 8 seconds.
+Scanner is also able to discover hosts.
 
 <p align="center">
-  <img src="./assets/10000_ports.png" alt="Scan of 10000 ports" width="85%">
+  <img src="./assets/Discover.png" alt="Discover of alive hosts" width="85%">
 </p>
 
 ## Build
