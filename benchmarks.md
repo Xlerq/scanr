@@ -2,7 +2,7 @@
 
 Maszyna: 8 rdzeni, `ulimit -n` = 524288. Build: `--release`. Narzędzie: hyperfine.
 
-## Before — model wątków (`cpu*252` = 2048 wątków)
+## Before — model wątków (`cpu*256` = 2048 wątków)
 
 | scenariusz | komenda | wynik |
 |---|---|---|
