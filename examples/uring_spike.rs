@@ -22,9 +22,10 @@ fn main() {
 
     unsafe {
         uring.submission().push(&connect).unwrap();
-        uring.submit_and_wait(1).unwrap();
-
-        let cqe = uring.completion().next().unwrap();
-        println!("port {} -> result {}", cqe.user_data(), cqe.result());
     }
+
+    uring.submit_and_wait(1).unwrap();
+
+    let cqe = uring.completion().next().unwrap();
+    println!("port {} -> result {}", cqe.user_data(), cqe.result());
 }
