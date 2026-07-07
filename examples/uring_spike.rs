@@ -1,38 +1,42 @@
+use io_uring::squeue::Flags;
+use io_uring::types::Fd;
 use io_uring::*;
 use socket2::{Domain, SockAddr, Socket, Type};
 use std::net::SocketAddr;
 use std::os::unix::io::AsRawFd;
 
 fn main() {
-    let mut uring = IoUring::new(4).unwrap();
+    let ports: Vec<u16> = (1..=15000).collect();
+    let n = ports.len();
+
+    let mut uring = IoUring::new(2 * n as u32).unwrap();
     let timeout = types::Timespec::new().sec(1);
 
-    let socket1 = Socket::new(Domain::IPV4, Type::STREAM, None).unwrap();
-    let addr1 = SockAddr::from("192.168.0.1:80".parse::<SocketAddr>().unwrap());
-    let fd1 = socket1.as_raw_fd();
-    let connect1 = opcode::Connect::new(types::Fd(fd1), addr1.as_ptr() as *const _, addr1.len())
-        .build()
-        .flags(squeue::Flags::IO_LINK)
-        .user_data(80);
-    let timeout1 = opcode::LinkTimeout::new(&timeout).build().user_data(0);
+    let mut sockets = Vec::with_capacity(n);
+    let mut addrs = Vec::with_capacity(n);
 
-    let socket2 = Socket::new(Domain::IPV4, Type::STREAM, None).unwrap();
-    let addr2 = SockAddr::from("8.8.8.8:81".parse::<SocketAddr>().unwrap());
-    let fd2 = socket2.as_raw_fd();
-    let connect2 = opcode::Connect::new(types::Fd(fd2), addr2.as_ptr() as *const _, addr2.len())
-        .build()
-        .flags(squeue::Flags::IO_LINK)
-        .user_data(53);
-    let timeout2 = opcode::LinkTimeout::new(&timeout).build().user_data(0);
-
-    unsafe {
-        uring.submission().push(&connect1).unwrap();
-        uring.submission().push(&timeout1).unwrap();
-        uring.submission().push(&connect2).unwrap();
-        uring.submission().push(&timeout2).unwrap();
+    for &port in &ports {
+        let socket = Socket::new(Domain::IPV4, Type::STREAM, None).unwrap();
+        let addr = SockAddr::from(format!("192.168.0.1:{port}").parse::<SocketAddr>().unwrap());
+        sockets.push(socket);
+        addrs.push(addr);
     }
 
-    uring.submit_and_wait(4).unwrap();
+    for i in 0..n {
+        let fd = sockets[i].as_raw_fd();
+        let connect = opcode::Connect::new(Fd(fd), addrs[i].as_ptr() as *const _, addrs[i].len())
+            .build()
+            .flags(Flags::IO_LINK)
+            .user_data(ports[i] as u64);
+        let link_timeout = opcode::LinkTimeout::new(&timeout).build().user_data(0);
+
+        unsafe {
+            uring.submission().push(&connect).unwrap();
+            uring.submission().push(&link_timeout).unwrap();
+        }
+    }
+
+    uring.submit_and_wait(2 * n).unwrap();
 
     for cqe in uring.completion() {
         let port = cqe.user_data();
@@ -44,9 +48,9 @@ fn main() {
 
         match res {
             0 => println!("Port {port} open"),
-            -111 => println!("Port {port} closed"),
-            -125 => println!("Port {port} filtered"),
-            _ => println!("Unknown"),
+            //-111 => println!("Port {port} closed"),
+            //-125 => println!("Port {port} filtered"),
+            _ => continue,
         }
     }
 }
