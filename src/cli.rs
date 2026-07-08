@@ -3,9 +3,10 @@ use std::net::IpAddr;
 use std::time::{Duration, Instant};
 
 use crate::config::{DiscoverConfig, OutputFormat, ScanConfig};
-use crate::discover::{discover, DiscoverEvent};
+use crate::discover::{DiscoverEvent, discover};
+use crate::engine::ScanEvent;
 use crate::output::{DiscoverSummary, ScanSummary};
-use crate::scanner::{scan_ports, ScanEvent};
+use crate::threadengine::scan_ports;
 
 const FRAME_BUDGET: Duration = Duration::from_millis(16);
 

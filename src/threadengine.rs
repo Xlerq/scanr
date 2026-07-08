@@ -6,16 +6,20 @@ use std::time::Duration;
 
 use crate::chunks::create_chunks;
 use crate::config::ScanConfig;
+use crate::engine::{ScanEngine, ScanEvent, TcpResult};
 
-pub enum ScanEvent {
-    PortScanned,
-    PortOpen,
-}
+pub struct ThreadEngine;
 
-pub enum TcpResult {
-    PortOpen,
-    PortClosed,
-    NoResponse,
+impl ScanEngine for ThreadEngine {
+    fn scan(
+        &self,
+        ip: IpAddr,
+        ports: &[u16],
+        timeout: Duration,
+        on_event: &mut dyn FnMut(ScanEvent),
+    ) -> Vec<(u16, TcpResult)> {
+        todo!()
+    }
 }
 
 pub fn scan_ports<F>(config: &ScanConfig, mut on_event: F) -> Vec<u16>
@@ -102,6 +106,9 @@ mod tests {
         let ip_port: SocketAddr = listener.local_addr().unwrap();
         drop(listener);
         let timeout: Duration = Duration::from_millis(100);
-        assert!(matches!(scan_port(&ip_port, timeout), TcpResult::PortClosed));
+        assert!(matches!(
+            scan_port(&ip_port, timeout),
+            TcpResult::PortClosed
+        ));
     }
 }

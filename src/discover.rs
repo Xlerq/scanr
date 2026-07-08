@@ -1,6 +1,7 @@
 use crate::chunks::create_chunks;
 use crate::config::DiscoverConfig;
-use crate::scanner::{scan_port, TcpResult};
+use crate::engine::TcpResult;
+use crate::threadengine::scan_port;
 
 use std::net::{IpAddr, SocketAddr};
 use std::sync::mpsc::{self, Sender};

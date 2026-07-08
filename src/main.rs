@@ -3,9 +3,10 @@ mod chunks;
 mod cli;
 mod config;
 mod discover;
+mod engine;
 mod output;
 mod parser;
-mod scanner;
+mod threadengine;
 
 use crate::args::Cli;
 use crate::cli::{run_cli_discovery, run_cli_scan};
