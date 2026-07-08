@@ -11,7 +11,7 @@ fn main() {
     let now = Instant::now();
 
     const CONCURRENCY: usize = 16384;
-    const TIMEOUT: u32 = 500000000;
+    const TIMEOUT: u32 = 10000000;
     let ports: Vec<u16> = (1..=65535).collect();
     let n: u16 = ports.len() as u16;
 

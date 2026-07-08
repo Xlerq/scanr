@@ -38,14 +38,3 @@ io_uring: `examples/uring_spike.rs`, stała `CONCURRENCY`. Wątki: `chunks.rs`, 
 ### Bramka KILL (roadmap: „UringEngine musi pobić baseline 3.26 s")
 
 Baseline 3.26 s zmierzono przy 100 ms / 2048 (stary preset `fast`). **io_uring@16384@100ms = 0.97 s → przechodzi ~3.4×.** UringEngine zalicza bramkę.
-
-### Werdykt
-
-Integracja io_uring **za `trait ScanEngine`** (Linux, kernel ≥ 5.5); model wątków zostaje jako przenośny fallback. Kolejność priorytetów wg zysk/koszt:
-1. **Adaptywny timeout z RTT** — engine-agnostyczny, przenośny, największa dźwignia.
-2. **Podniesienie współbieżności wątków** ku sufitowi cgroup — przenośnie odzyskuje większość zysku.
-3. **Silnik io_uring** — tania współbieżność ponad ścianą wątków.
-
-Nigdy „zamiast" — zawsze „obok, za traitem".
-
-> Uwaga o presetach: w tej sesji przestrojono presety prędkości (`fast` 100→250 ms, `normal` 300→500 ms). Liczba 3.26 s z sekcji „Before" pochodzi sprzed tej zmiany i była mierzona przy starym `fast` = 100 ms.
