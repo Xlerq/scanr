@@ -48,8 +48,8 @@ impl From<CliSpeed> for ScanSpeed {
 impl ScanSpeed {
     pub fn timeout(&self) -> Duration {
         match self {
-            ScanSpeed::Fast => Duration::from_millis(100),
-            ScanSpeed::Normal => Duration::from_millis(300),
+            ScanSpeed::Fast => Duration::from_millis(250),
+            ScanSpeed::Normal => Duration::from_millis(500),
             ScanSpeed::Thorough => Duration::from_millis(1000),
         }
     }

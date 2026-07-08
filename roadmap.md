@@ -27,6 +27,6 @@ Do zrobienia:
 
 - [ ] `trait ScanEngine { fn scan(ip, ports, timeout) -> Vec<TcpResult> }`; thread-engine zostaje jako fallback
 - [ ] `UringEngine` (Linux): Connect SQE + LinkTimeout; CQE 0=open, -ECONNREFUSED=closed, timeout=filtered
-- [ ] KILL: jeśli UringEngine nie pobije baseline 3.26 s — STOP, nie buduj mio
+- [x] (zmierzone): io_uring@16384@100ms = 0.97 s vs baseline 3.26 s → przechodzi ~3.4×. Silnik neutralny przy równej współbieżności; zysk io_uring = tania współbieżność (wątki padają na cgroup `pids.max`=14206). Priorytet 1 to adaptywny timeout (engine-agnostyczny), potem podbicie wątków, potem UringEngine. Szczegóły: `benchmarks.md` sekcja "After".
 - [ ] `MioEngine` (epoll/kqueue/IOCP): non-blocking connect → writable → SO_ERROR
 - [ ] dispatch: Linux probuje io_uring (kernel ≥5.5) → Uring, else Mio; mac/Win zawsze Mio
