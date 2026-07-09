@@ -7,10 +7,12 @@ use crate::discover::{DiscoverEvent, discover};
 use crate::engine::{ScanEngine, ScanEvent, TcpResult};
 use crate::output::{DiscoverSummary, ScanSummary};
 use crate::threadengine::ThreadEngine;
+use crate::uringengine::UringEngine;
 
 const FRAME_BUDGET: Duration = Duration::from_millis(16);
 
 pub fn run_cli_scan(config: &ScanConfig) -> ScanSummary {
+    let engine = UringEngine;
     let timer: Instant = Instant::now();
     let mut last_draw: Instant = Instant::now();
 
@@ -21,7 +23,6 @@ pub fn run_cli_scan(config: &ScanConfig) -> ScanSummary {
     let show_progress: bool = matches!(config.format, OutputFormat::Table);
     let is_terminal: bool = io::stdout().is_terminal();
 
-    let engine = ThreadEngine;
     let verdicts: Vec<(u16, TcpResult)> = engine.scan(
         config.ip,
         &config.ports,

@@ -7,6 +7,7 @@ mod engine;
 mod output;
 mod parser;
 mod threadengine;
+mod uringengine;
 
 use crate::args::Cli;
 use crate::cli::{run_cli_discovery, run_cli_scan};
