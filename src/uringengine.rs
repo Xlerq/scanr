@@ -103,7 +103,7 @@ impl ScanEngine for UringEngine {
 
 fn get_concurrency(&total_ports: &u16) -> u16 {
     let get_limit = Resource::NOFILE.get().unwrap();
-    let first_min: u64 = min(get_limit.1 as u64, total_ports as u64);
+    let first_min: u64 = min(get_limit.0 as u64, total_ports as u64);
 
     min(first_min, 16384) as u16
 }
