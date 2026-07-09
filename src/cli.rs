@@ -4,9 +4,9 @@ use std::time::{Duration, Instant};
 
 use crate::config::{DiscoverConfig, OutputFormat, ScanConfig};
 use crate::discover::{DiscoverEvent, discover};
-use crate::engine::ScanEvent;
+use crate::engine::{ScanEngine, ScanEvent, TcpResult};
 use crate::output::{DiscoverSummary, ScanSummary};
-use crate::threadengine::scan_ports;
+use crate::threadengine::ThreadEngine;
 
 const FRAME_BUDGET: Duration = Duration::from_millis(16);
 
@@ -21,25 +21,31 @@ pub fn run_cli_scan(config: &ScanConfig) -> ScanSummary {
     let show_progress: bool = matches!(config.format, OutputFormat::Table);
     let is_terminal: bool = io::stdout().is_terminal();
 
-    let open_ports: Vec<u16> = scan_ports(config, |event| match event {
-        ScanEvent::PortScanned => {
-            scanned_count += 1;
+    let engine = ThreadEngine;
+    let verdicts: Vec<(u16, TcpResult)> = engine.scan(
+        config.ip,
+        &config.ports,
+        config.speed.timeout(),
+        &mut |event| match event {
+            ScanEvent::PortScanned => {
+                scanned_count += 1;
 
-            if show_progress && is_terminal && last_draw.elapsed() >= FRAME_BUDGET {
-                print!(
-                    "\r{}",
-                    render_progress(scanned_count, total_ports, live_open_count)
-                );
+                if show_progress && is_terminal && last_draw.elapsed() >= FRAME_BUDGET {
+                    print!(
+                        "\r{}",
+                        render_progress(scanned_count, total_ports, live_open_count)
+                    );
 
-                io::stdout().flush().unwrap();
-                last_draw = Instant::now();
+                    io::stdout().flush().unwrap();
+                    last_draw = Instant::now();
+                }
             }
-        }
 
-        ScanEvent::PortOpen => {
-            live_open_count += 1;
-        }
-    });
+            ScanEvent::PortOpen => {
+                live_open_count += 1;
+            }
+        },
+    );
 
     if show_progress && is_terminal {
         print!(
@@ -49,6 +55,12 @@ pub fn run_cli_scan(config: &ScanConfig) -> ScanSummary {
         io::stdout().flush().unwrap();
     }
     let elapsed: Duration = timer.elapsed();
+
+    let open_ports: Vec<u16> = verdicts
+        .iter()
+        .filter(|(_, r)| matches!(r, TcpResult::PortOpen))
+        .map(|(p, _)| *p)
+        .collect();
 
     ScanSummary {
         open_ports,
