@@ -4,15 +4,13 @@ use std::time::{Duration, Instant};
 
 use crate::config::{DiscoverConfig, OutputFormat, ScanConfig};
 use crate::discover::{DiscoverEvent, discover};
-use crate::engine::{ScanEngine, ScanEvent, TcpResult};
+use crate::engine::{ScanEngine, ScanEvent, TcpResult, select};
 use crate::output::{DiscoverSummary, ScanSummary};
-use crate::threadengine::ThreadEngine;
-use crate::uringengine::UringEngine;
 
 const FRAME_BUDGET: Duration = Duration::from_millis(16);
 
 pub fn run_cli_scan(config: &ScanConfig) -> ScanSummary {
-    let engine = UringEngine;
+    let engine = select();
     let timer: Instant = Instant::now();
     let mut last_draw: Instant = Instant::now();
 
