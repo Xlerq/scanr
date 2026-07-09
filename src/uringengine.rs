@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::os::unix::io::AsRawFd;
@@ -6,6 +7,7 @@ use std::time::Duration;
 use io_uring::squeue::Flags;
 use io_uring::types::Fd;
 use io_uring::{IoUring, opcode, types};
+use rlimit::Resource;
 use socket2::{Domain, SockAddr, Socket, Type};
 
 use crate::engine::{ScanEngine, ScanEvent, TcpResult};
@@ -24,12 +26,10 @@ impl ScanEngine for UringEngine {
             return Vec::new();
         }
 
-        // TODO: wyprowadzić z RLIMIT_NOFILE
-        const CONCURRENCY: usize = 16384;
-        let window = ports.len().min(CONCURRENCY);
-        let n = ports.len();
+        let total_ports: u16 = ports.len() as u16;
+        let concurreency: u16 = get_concurrency(&total_ports);
 
-        let mut uring = IoUring::new((2 * window) as u32).unwrap();
+        let mut uring = IoUring::new((2 * concurreency) as u32).unwrap();
         let timeout_spec = types::Timespec::from(timeout);
 
         let addrs: Vec<SockAddr> = ports
@@ -39,11 +39,11 @@ impl ScanEngine for UringEngine {
 
         let mut sockets: HashMap<u16, Socket> = HashMap::new();
         let mut next: usize = 0;
-        let mut remaining: usize = n;
-        let mut results: Vec<(u16, TcpResult)> = Vec::with_capacity(n);
+        let mut remaining: usize = total_ports as usize;
+        let mut results: Vec<(u16, TcpResult)> = Vec::with_capacity(total_ports as usize);
 
         while remaining > 0 {
-            while sockets.len() < window && next < n {
+            while sockets.len() < concurreency as usize && next < total_ports as usize {
                 let port = ports[next];
                 let socket = Socket::new(Domain::IPV4, Type::STREAM, None).unwrap();
                 let fd = socket.as_raw_fd();
@@ -99,4 +99,11 @@ impl ScanEngine for UringEngine {
 
         results
     }
+}
+
+fn get_concurrency(&total_ports: &u16) -> u16 {
+    let get_limit = Resource::NOFILE.get().unwrap();
+    let first_min: u64 = min(get_limit.1 as u64, total_ports as u64);
+
+    min(first_min, 16384) as u16
 }
