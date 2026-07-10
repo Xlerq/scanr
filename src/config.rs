@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use std::net::IpAddr;
+use std::net::Ipv4Addr;
 use std::time::Duration;
 
 use crate::args::CliSpeed;
@@ -12,14 +12,14 @@ pub enum OutputFormat {
 }
 
 pub struct ScanConfig {
-    pub ip: IpAddr,
+    pub ip: Ipv4Addr,
     pub ports: Vec<u16>,
     pub speed: ScanSpeed,
     pub format: OutputFormat,
 }
 
 pub struct DiscoverConfig {
-    pub ips: Vec<IpAddr>,
+    pub ips: Vec<Ipv4Addr>,
     pub speed: ScanSpeed,
     pub format: OutputFormat,
 }

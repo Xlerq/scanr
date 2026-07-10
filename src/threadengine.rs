@@ -1,5 +1,5 @@
 use std::io::ErrorKind;
-use std::net::{IpAddr, SocketAddr, TcpStream};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpStream};
 use std::sync::mpsc::{self, Sender};
 use std::thread;
 use std::time::Duration;
@@ -12,7 +12,7 @@ pub struct ThreadEngine;
 impl ScanEngine for ThreadEngine {
     fn scan(
         &self,
-        ip: IpAddr,
+        ip: Ipv4Addr,
         ports: &[u16],
         timeout: Duration,
         on_event: &mut dyn FnMut(ScanEvent),
@@ -59,7 +59,7 @@ pub fn scan_port(ip_port: &SocketAddr, timeout: Duration) -> TcpResult {
 }
 
 fn scan_chunk(
-    ip: IpAddr,
+    ip: Ipv4Addr,
     chunk: Vec<u16>,
     tx: Sender<ScanEvent>,
     timeout: Duration,
@@ -67,7 +67,7 @@ fn scan_chunk(
     let mut results: Vec<(u16, TcpResult)> = Vec::with_capacity(chunk.len());
 
     for port in chunk {
-        let ip_port: SocketAddr = SocketAddr::new(ip, port);
+        let ip_port: SocketAddr = SocketAddr::from(SocketAddrV4::new(ip, port));
         let verdict = scan_port(&ip_port, timeout);
         if matches!(verdict, TcpResult::PortOpen) {
             tx.send(ScanEvent::PortOpen).unwrap();

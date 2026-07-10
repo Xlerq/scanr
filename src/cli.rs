@@ -1,5 +1,5 @@
 use std::io::{self, IsTerminal, Write};
-use std::net::IpAddr;
+use std::net::Ipv4Addr;
 use std::time::{Duration, Instant};
 
 use crate::config::{DiscoverConfig, OutputFormat, ScanConfig};
@@ -78,7 +78,7 @@ pub fn run_cli_discovery(config: &DiscoverConfig) -> DiscoverSummary {
     let show_progress: bool = matches!(config.format, OutputFormat::Table);
     let is_terminal: bool = io::stdout().is_terminal();
 
-    let alive_hosts: Vec<IpAddr> = discover(config, |event| match event {
+    let alive_hosts: Vec<Ipv4Addr> = discover(config, |event| match event {
         DiscoverEvent::HostScanned => {
             discover_count += 1;
             if show_progress && is_terminal && last_draw.elapsed() >= FRAME_BUDGET {

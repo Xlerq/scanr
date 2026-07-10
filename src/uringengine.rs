@@ -1,6 +1,6 @@
 use std::cmp::min;
 use std::collections::HashMap;
-use std::net::{IpAddr, SocketAddr};
+use std::net::{Ipv4Addr, SocketAddrV4};
 use std::os::unix::io::AsRawFd;
 use std::time::Duration;
 
@@ -17,7 +17,7 @@ pub struct UringEngine;
 impl ScanEngine for UringEngine {
     fn scan(
         &self,
-        ip: IpAddr,
+        ip: Ipv4Addr,
         ports: &[u16],
         timeout: Duration,
         on_event: &mut dyn FnMut(ScanEvent),
@@ -27,18 +27,18 @@ impl ScanEngine for UringEngine {
         }
 
         let total_ports: u16 = ports.len() as u16;
-        let concurreency: u16 = get_concurrency(&total_ports);
+        let concurreency: u16 = get_concurrency(total_ports);
 
         let mut uring = IoUring::new((2 * concurreency) as u32).unwrap();
         let timeout_spec = types::Timespec::from(timeout);
 
         let addrs: Vec<SockAddr> = ports
             .iter()
-            .map(|&p| SockAddr::from(SocketAddr::new(ip, p)))
+            .map(|&p| SockAddr::from(SocketAddrV4::new(ip, p)))
             .collect();
 
         let mut sockets: HashMap<u16, Socket> = HashMap::new();
-        let mut next: usize = 0;
+        let mut next: usize = usize::MIN;
         let mut remaining: usize = total_ports as usize;
         let mut results: Vec<(u16, TcpResult)> = Vec::with_capacity(total_ports as usize);
 
@@ -101,9 +101,10 @@ impl ScanEngine for UringEngine {
     }
 }
 
-fn get_concurrency(&total_ports: &u16) -> u16 {
-    let get_limit = Resource::NOFILE.get().unwrap();
-    let first_min: u64 = min(get_limit.0 as u64, total_ports as u64);
+fn get_concurrency(total_ports: u16) -> u16 {
+    let soft = Resource::NOFILE.get().unwrap();
+    let syslimit = soft.0.saturating_sub(64);
 
-    min(first_min, 16384) as u16
+    let first_min: u16 = min(syslimit, total_ports as u64) as u16;
+    min(first_min, 16384).max(1)
 }

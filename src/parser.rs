@@ -1,5 +1,5 @@
 use ipnet::IpNet;
-use std::net::IpAddr;
+use std::net::Ipv4Addr;
 
 use crate::args::{Cli, CliCommand};
 use crate::config::{DiscoverConfig, ParsedCommand, ScanConfig};
@@ -32,7 +32,7 @@ pub fn parse_cli(cli: Cli) -> Result<ParsedCommand, String> {
     }
 }
 
-fn parse_cidr(text: &str) -> Result<Vec<IpAddr>, String> {
+fn parse_cidr(text: &str) -> Result<Vec<Ipv4Addr>, String> {
     let network: IpNet = text
         .trim()
         .parse()
@@ -44,7 +44,7 @@ fn parse_cidr(text: &str) -> Result<Vec<IpAddr>, String> {
                 return Err("Error: CIDR range is to large, use smaller for now".to_string());
             }
 
-            let ips: Vec<IpAddr> = ipv4_network.hosts().map(IpAddr::V4).collect();
+            let ips: Vec<Ipv4Addr> = ipv4_network.hosts().collect();
             Ok(ips)
         }
 

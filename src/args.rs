@@ -1,5 +1,5 @@
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use std::net::IpAddr;
+use std::net::Ipv4Addr;
 
 use crate::config::OutputFormat;
 
@@ -18,7 +18,7 @@ pub enum CliCommand {
 #[derive(Args)]
 pub struct ScanArgs {
     /// Target IP address to scan
-    pub ip: IpAddr,
+    pub ip: Ipv4Addr,
     /// Ports to scan, e.g 80, 20-25, 22,80,443
     pub ports: String,
     /// Scan speed preset

@@ -1,7 +1,7 @@
 use crate::config::{DiscoverConfig, OutputFormat, ScanConfig};
 use serde::Serialize;
 use std::io::{self, Write};
-use std::net::IpAddr;
+use std::net::Ipv4Addr;
 use std::time::Duration;
 
 pub struct ScanSummary {
@@ -10,7 +10,7 @@ pub struct ScanSummary {
 }
 
 pub struct DiscoverSummary {
-    pub alive_hosts: Vec<IpAddr>,
+    pub alive_hosts: Vec<Ipv4Addr>,
     pub scanned_hosts: usize,
     pub elapsed: Duration,
 }

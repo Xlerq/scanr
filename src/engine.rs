@@ -1,4 +1,4 @@
-use std::net::IpAddr;
+use std::net::Ipv4Addr;
 use std::time::Duration;
 
 use io_uring::IoUring;
@@ -25,7 +25,7 @@ pub enum Engine {
 pub trait ScanEngine {
     fn scan(
         &self,
-        ip: IpAddr,
+        ip: Ipv4Addr,
         ports: &[u16],
         timeout: Duration,
         on_event: &mut dyn FnMut(ScanEvent),
@@ -35,7 +35,7 @@ pub trait ScanEngine {
 impl ScanEngine for Engine {
     fn scan(
         &self,
-        ip: IpAddr,
+        ip: Ipv4Addr,
         ports: &[u16],
         timeout: Duration,
         on_event: &mut dyn FnMut(ScanEvent),
