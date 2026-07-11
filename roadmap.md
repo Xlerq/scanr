@@ -28,10 +28,10 @@
 
 ### IPv4-only
 
-- [ ] Zmień typ celu z `IpAddr` na `Ipv4Addr` w CLI, konfiguracji i silnikach.
+- [x] Zmień typ celu z `IpAddr` na `Ipv4Addr` w CLI, konfiguracji i silnikach.
 - [ ] Odrzucaj IPv6 na granicy CLI, zanim powstanie `ScanConfig`.
 - [ ] Dodaj test: `scan ::1 80` kończy się błędem użycia i kodem wyjścia `2`.
-- [ ] Usuń z roadmapy i kodu wszystkie plany obsługi IPv6.
+- [x] Usuń z roadmapy i kodu wszystkie plany obsługi IPv6.
 
 ### Invariant portów i `u16`
 
