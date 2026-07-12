@@ -1,185 +1,120 @@
 # scanr — roadmap
 
-## Zakres produktu
+## Cel produktu
 
-- Linux-only, IPv4-only, TCP connect scanner bez uprawnień root.
-- `UringEngine` jest silnikiem głównym; ograniczony `ThreadEngine` jest fallbackiem.
-- Port i liczba skanowanych portów pozostają `u16`.
-- Dozwolone porty: `1..=u16::MAX`. Port `0` jest odrzucany.
-- `--speed` wybiera profil; użytkownik nie musi podawać timeoutu ani współbieżności.
-- Priorytety: poprawność → brak paniców → UX → powtarzalne benchmarki → tuning.
-- „Szybciej” oznacza krótszy czas przy identycznym wyniku, nie więcej false negatives.
+- Szybki TCP connect scanner dla Linuksa, IPv4-only, bez uprawnień root.
+- Prosty interfejs dla osób nietechnicznych: cel, porty, `--speed` i format wyniku.
+- `UringEngine` jest głównym backendem; ograniczony `ThreadEngine` jest fallbackiem.
+- Poprawność wyniku ma pierwszeństwo przed szybkością.
+- Porty i ich liczba pozostają `u16`; dozwolony zakres to `1..=65535`.
+
+## Zamrożone decyzje
+
+- Brak publicznych opcji wyboru backendu, timeoutu i współbieżności.
+- Fallback jest dozwolony tylko przed rozpoczęciem skanu, gdy wymagane `io_uring`
+  nie jest dostępne.
+- Błędy zasobów i błędy działającego backendu kończą skan; nie zmieniają backendu
+  ani stanu portu.
+- `HostUnreachable` i `NetworkUnreachable` pozostają osobnymi błędami celu.
+- Stdout zawiera wynik; stderr zawiera progress, ostrzeżenia i diagnostykę.
+- IPv6, inne systemy i nowe metody discovery są poza następnym wydaniem.
 
 ## Stan obecny
 
-- [x] CLI z subkomendami `scan` i `discover`.
-- [x] Parser pojedynczych portów, list i zakresów.
+- [x] Komendy `scan` i `discover`.
+- [x] Porty pojedyncze, listy i zakresy.
 - [x] Profile `fast`, `normal`, `thorough`.
-- [x] Output `table`, `json`, `csv`.
-- [x] Nazwy popularnych usług.
-- [x] TCP host discovery; prawdziwe `ECONNREFUSED` oznacza żywy host.
-- [x] Trait `ScanEngine` oraz `ThreadEngine`.
-- [~] `UringEngine`: działa, ale nie ma obsługi błędów ani testów integracyjnych.
-- [~] Automatyczny wybór silnika: sprawdza utworzenie ringa, ale nie obsługę `Connect` i `LinkTimeout`.
-- [~] Współbieżność z `RLIMIT_NOFILE`: zmiana hard → soft nie jest jeszcze widoczna w tej gałęzi; nadal brakuje zapasu FD.
-- [~] Benchmarki: istnieją wyniki eksperymentalne, ale odnoszą się do starego timeoutu i usuniętego `uring_spike`.
+- [x] Format `table`, `json`, `csv` i nazwy usług.
+- [x] Automatyczny wybór `UringEngine` lub `ThreadEngine`.
+- [x] `UringEngine` podnosi soft `RLIMIT_NOFILE` dla własnego procesu, jeśli
+  pozwala na to hard limit.
+- [x] Aktualny screenshot pełnego skanu przez `UringEngine`.
+- [~] Backendy działają, ale nie mają jeszcze wspólnej semantyki błędów.
+- [~] Wybór `io_uring` nie sprawdza jeszcze wymaganych opcode.
+- [~] Discovery działa, ale wymaga poprawienia klasyfikacji błędów i puli workerów.
+- [ ] Port `0` nadal nie jest odrzucany i może zawiesić `UringEngine`.
 
 ## P0 — poprawność i brak paniców
 
-### IPv4-only
+### Wejście
 
-- [x] Zmień typ celu z `IpAddr` na `Ipv4Addr` w CLI, konfiguracji i silnikach.
-- [ ] Odrzucaj IPv6 na granicy CLI, zanim powstanie `ScanConfig`.
-- [ ] Dodaj test: `scan ::1 80` kończy się błędem użycia i kodem wyjścia `2`.
-- [x] Usuń z roadmapy i kodu wszystkie plany obsługi IPv6.
+- [ ] Odrzuć port `0`; obsłuż poprawnie pełny zakres `1-65535`.
+- [ ] Dodaj typowane błędy portu, zakresu i CIDR.
+- [ ] Zapewnij kod wyjścia `2` dla błędnego wejścia, w tym IPv6.
+- [ ] Usuń niejawne i zawijające konwersje liczby portów.
 
-### Invariant portów i `u16`
+### Wyniki i błędy
 
-- [ ] `parse_port` odrzuca `0`; akceptuje `1` i `65535`.
-- [ ] Zachowaj `u16` dla portów, `total_ports`, `remaining` i limitu współbieżności.
-- [ ] Każdą konwersję długości do `u16` wykonuj przez `u16::try_from`, nigdy przez `as`.
-- [ ] Zarezerwuj `user_data == 0` wyłącznie dla timeoutu.
-- [ ] Dodaj testy: port `0`, pełny zakres `1-65535`, duplikaty i odwrócony zakres.
+- [ ] Zmień silniki na `Result<_, ScanError>` i dodaj nadrzędny `AppError`.
+- [ ] Ujednolić klasyfikację TCP dla obu backendów i discovery.
+- [ ] Rozróżniaj `Open`, `Closed`, `Filtered` oraz błędy celu i wykonania.
+- [ ] Usuń paniki osiągalne przez input, system operacyjny lub zapis outputu.
+- [ ] Zwracaj kod `1` dla błędu wykonania bez publikowania częściowego wyniku.
 
-### Typowane błędy
+### Zasoby i backendy
 
-- [ ] Zmień `ScanEngine::scan` na `Result<Vec<(u16, TcpResult)>, ScanError>`.
-- [ ] Dodaj `ParseError` dla złego portu, zakresu i CIDR.
-- [ ] Dodaj `ScanError` dla: ring init, unsupported opcode, socket, submit, resource limit, worker spawn/join i target unreachable.
-- [ ] Dodaj `AppError`, który opakowuje `ParseError`, `ScanError` i błąd outputu.
-- [ ] Usuń `unwrap`/`expect` z błędów zależnych od inputu lub OS; dopuszczaj `expect` tylko po sprawdzeniu invariantu i z konkretnym komunikatem.
-- [ ] Usuń błędy jako `String` z prefiksem `"Error:"`; formatowanie błędu wykonuj raz w `main`.
-- [ ] Użyj `std::io::Error::from_raw_os_error(-res).kind()` zamiast magicznego `-111`.
-- [ ] Mapowanie wyników:
-  - `0` → `Open`,
-  - `ConnectionRefused` → `Closed`,
-  - connect anulowany przez `LinkTimeout` → `Filtered`,
-  - `HostUnreachable`/`NetworkUnreachable` → błąd celu,
-  - pozostałe errno → `ScanError`, nie `Filtered`.
-- [ ] `main` zwraca kod `0` dla sukcesu, `2` dla złego wejścia i `1` dla błędu wykonania.
+- [x] Podnoś tylko soft `RLIMIT_NOFILE` procesu; nie zmieniaj hard limitu.
+- [ ] Zwróć kontrolowany błąd, gdy budżet FD jest zbyt mały.
+- [ ] Zastąp masowe tworzenie wątków stałą pulą maksymalnie 512 workerów.
+- [ ] Sprawdzaj `Connect`, `LinkTimeout` i docelowy rozmiar ringa przed wyborem
+  `UringEngine`.
+- [ ] Raportuj błędy runtime `io_uring` zamiast klasyfikować je jako port.
 
-### Limity zasobów
+### CLI
 
-- [ ] Zsynchronizuj zmianę na soft `RLIMIT_NOFILE` (`get().0`).
-- [ ] Odejmij stały zapas co najmniej 64 FD przed wyliczeniem współbieżności.
-- [ ] Jeśli budżet FD jest za mały, zwróć czytelny błąd zamiast paniki.
-- [ ] Nie przełączaj silnika po rozpoczęciu skanu; fallback jest dozwolony tylko przed pierwszym connectem.
-- [ ] `ThreadEngine`: stała pula maksymalnie 512 workerów zamiast `cpu_count * 256` wątków.
-- [ ] Użyj `thread::Builder::spawn`, aby błąd utworzenia workera zwracał `Result`.
-- [ ] Dodaj test subprocessu z soft `RLIMIT_NOFILE=64`: skan kończy się wynikiem albo kontrolowanym błędem, nigdy paniką.
+- [ ] Utrzymuj progress na stderr i wynik na stdout dla każdego formatu.
+- [ ] Dodaj `--verbose` z backendem, timeoutem, współbieżnością i soft limitem FD.
+- [ ] Obsłuż broken pipe bez paniki i backtrace.
+- [ ] Sortuj wyniki i ustabilizuj schemat JSON/CSV.
 
-### Poprawny wybór `io_uring`
+## P1 — czysty kod i testy
 
-- [ ] Probe sprawdza opcodes `Connect` i `LinkTimeout`, nie tylko `IoUring::new(1)`.
-- [ ] Utworzenie ringa o docelowej wielkości następuje przed wyborem silnika.
-- [ ] Nieobsługiwany `io_uring` uruchamia `ThreadEngine` i jest widoczny w `--verbose`.
-- [ ] Runtime error z `io_uring` jest raportowany; nie może zostać zamieniony na stan portu.
+- [ ] Rozdziel surowe argumenty, parser, konfigurację, silniki, CLI i output.
+- [ ] Przenieś aplikację do `lib.rs`; pozostaw w `main.rs` tylko exit code.
+- [ ] Usuń martwy kod, literówki i nieuzasadnione `unsafe`.
+- [ ] Dodaj testy parsera, CLI, obu backendów i ich identycznych wyników.
+- [ ] Testuj timeout/DROP w izolowanym network namespace; bez zewnętrznych hostów.
+- [ ] Dodaj CI dla fmt, Clippy i wszystkich testów oraz ustal wersję Rust.
+- [ ] Uzgodnij README, `--help`, screenshoty i zachowanie programu.
 
-## P1 — clean Rust
+## Discovery — zakres zamrożony
 
-### Granice modułów
-
-- [ ] `args.rs`: wyłącznie surowe typy clap.
-- [ ] `parser.rs`: walidacja wejścia i budowanie poprawnej konfiguracji.
-- [ ] `config.rs`: tylko zwalidowane dane domenowe.
-- [ ] `engine.rs`: `ScanEngine`, `TcpResult`, `ScanError`, wybór backendu.
-- [ ] `threadengine.rs` i `uringengine.rs`: tylko implementacje backendów.
-- [ ] `cli.rs`: orkiestracja i progress; bez logiki sieciowej.
-- [ ] `output.rs`: wyłącznie serializacja i prezentacja.
-- [ ] Przenieś logikę z binarki do `lib.rs`; `main.rs` ma tylko uruchomić aplikację i ustawić exit code.
-
-### Zasady kodu
-
-- [ ] Zamień `usize::MIN` na `0`.
-- [ ] Popraw nazwy `concurreency`, `lateny` i pozostałe literówki.
-- [ ] Przekazuj małe typy `Copy`, np. `u16`, przez wartość zamiast `&u16`.
-- [ ] Nie zapisuj typów lokalnych, gdy kompilator jednoznacznie je inferuje.
-- [ ] Każdy `unsafe` w `UringEngine` ma komentarz `SAFETY` opisujący lifetime socketów, adresów i timeoutu.
-- [ ] Wydziel czystą funkcję mapującą CQE/`io::ErrorKind` na wynik; testuj ją bez sieci.
-- [ ] Nie twórz na razie wrappera `Port`; walidacja `u16` na granicy CLI wystarcza.
-- [ ] Usuń martwy `icmp.rs`, dopóki ICMP nie wróci do zakresu projektu.
-
-### CI i toolchain
-
-- [ ] Ustaw minimalną wersję Rust przez `rust-version` i `rust-toolchain.toml`.
-- [ ] CI: `cargo fmt --check`.
-- [ ] CI: `cargo clippy --all-targets --all-features -- -D warnings`.
-- [ ] CI: `cargo test --all-targets`.
-- [ ] Testy `UringEngine` pomijaj tylko wtedy, gdy kernel rzeczywiście nie obsługuje wymaganych opcode.
-
-## P1 — testy poprawności
-
-- [ ] Parser: granice `1`/`65535`, port `0`, pełny zakres, listy, duplikaty i błędy.
-- [ ] `ThreadEngine`: lokalny IPv4 open i closed.
-- [ ] `UringEngine`: ten sam lokalny zestaw open/closed.
-- [ ] Oba silniki zwracają identyczne, posortowane wyniki dla tego samego celu.
-- [ ] Timeout/DROP testuj w izolowanym network namespace z `nftables`; opóźnione `accept()` nie symuluje DROP.
-- [ ] Discovery: tylko `Open` i `ConnectionRefused` oznaczają host alive.
-- [ ] CLI: kody wyjścia `0/1/2`, JSON na stdout, błędy i progress na stderr.
-- [ ] Żaden test automatyczny nie skanuje zewnętrznego hosta.
-
-## P1 — UX CLI
-
-- [ ] Popraw README: `scanr scan`, `scanr discover`, instalacja, Linux/IPv4-only i wymagana wersja Rust.
-- [ ] Usuń niedziałające odwołania do `assets` albo dodaj rzeczywiste pliki.
-- [ ] Dodaj `#[command(version, about)]` i konkretne opisy argumentów.
-- [ ] Dokumentuj rzeczywiste wartości timeoutów profili.
-- [ ] Sortuj porty i hosty przed każdym formatem outputu.
-- [ ] Progress zapisuj na stderr; wynik na stdout.
-- [ ] Dla discovery używaj etykiety `alive`, nie `open`.
-- [ ] JSON kończy się newline i ma stabilny, przetestowany schemat.
-- [ ] Dodaj `--verbose`: wybrany silnik, timeout, współbieżność i soft limit FD.
-- [ ] Błąd zapisu/broken pipe nie może powodować panic backtrace.
-- [ ] README zawiera krótką informację: skanuj wyłącznie systemy, na które masz zgodę.
-
-## P2 — wiarygodne benchmarki
-
-- [ ] Usuń wyniki odnoszące się do nieistniejącego `examples/uring_spike.rs`.
-- [ ] Benchmarkuj aktualną binarkę `--release`, nie osobny prototyp.
-- [ ] Zapisuj: commit, CPU, kernel, Rust, soft/hard NOFILE, engine, timeout, concurrency i target.
-- [ ] Każdy wynik: minimum 20 przebiegów, mediana, min/max i odchylenie.
-- [ ] Osobne scenariusze:
-  - localhost/RST — narzut silnika,
-  - kontrolowany DROP — timeout-bound,
-  - znane open/closed/drop — poprawność,
-  - LAN — zachowanie prawdziwego routera.
-- [ ] Porównuj silniki przy identycznym timeout, współbieżności i oczekiwanym wyniku.
-- [ ] Porównuj z `nmap -sT`; nie porównuj TCP connect scanera z raw SYN scannerem.
-- [ ] Bramka dla claimu „1000 portów < 1 s”: mediana < 1 s na opisanym celu LAN i zero błędnie sklasyfikowanych portów.
-- [ ] Claim o pełnym zakresie publikuj tylko z pełną komendą, warunkami i wynikiem poprawności.
-
-## P2 — tuning po przejściu P0/P1
-
-- [ ] Batchuj submit/drain CQE; ogranicz liczbę `submit_and_wait(1)`.
-- [ ] Profiluj przed zmianą `HashMap`; optymalizuj wyłącznie potwierdzony hot path.
-- [ ] Adaptywny timeout: próbka RTT, ograniczone minimum/maksimum i test false negatives.
-- [ ] AIMD concurrency reaguje na resource errors i completion rate; zawsze respektuje soft NOFILE.
-- [ ] Dodaj limit burst/rate, jeśli router gubi wyniki przy wysokiej współbieżności.
-- [ ] Zachowaj profile jako prosty interfejs; parametry techniczne pokazuj w `--verbose`.
-
-## Discovery — zamrożony zakres
-
-- [ ] Użyj tego samego klasyfikatora błędów co skan portów.
-- [ ] Zastąp tysiące wątków tą samą ograniczoną pulą workerów co `ThreadEngine`.
-- [ ] Zachowaj wejściowy CIDR w `DiscoverConfig` i dodaj go do JSON/table.
-- [ ] Ostrzegaj na stderr przy zakresie większym niż `/24`; bez interaktywnego potwierdzenia.
+- [ ] Użyj wspólnego klasyfikatora TCP i ograniczonej puli workerów.
+- [ ] Zachowaj wejściowy CIDR w wyniku.
+- [ ] Ostrzegaj przy zakresie większym niż `/24`.
 - [ ] Nie dodawaj ICMP ani ARP przed ukończeniem P0/P1.
+
+## P2 — benchmarki i tuning
+
+- [ ] Benchmarkuj aktualną binarkę `--release` w kontrolowanych scenariuszach.
+- [ ] Porównuj backendy i `nmap -sT` przy tych samych warunkach i wyniku.
+- [ ] Publikuj medianę co najmniej 20 przebiegów wraz ze środowiskiem testu.
+- [ ] Claim „1000 portów < 1 s” wymaga mediany poniżej 1 s i braku błędów.
+- [ ] Dopiero po profilowaniu rozważ batching CQE, adaptacyjny timeout i AIMD.
 
 ## Poza zakresem
 
-- IPv6.
-- macOS, Windows i `MioEngine`.
-- Raw SYN scan wymagający root/capabilities.
-- ICMP, ARP i wykrywanie middleboxa przed stabilizacją TCP.
-- TUI/ratatui przed stabilnym CLI.
-- Hostname/DNS przed stabilnym skanem pojedynczego IPv4.
+- IPv6, macOS, Windows i `MioEngine`.
+- Raw SYN scan, ICMP i ARP.
+- Hostname/DNS, TUI i publiczne strojenie backendu.
 
-## Definition of done dla następnego wydania
+## Kolejność najbliższych prac
 
-- [ ] Brak `unwrap`/`expect` na błędach osiągalnych z inputu lub OS; każdy pozostały `expect` dokumentuje sprawdzony invariant.
-- [ ] Brak paniców przy złym wejściu, niskim NOFILE i niedostępnym `io_uring`.
-- [ ] Thread i Uring mają identyczną semantykę wyników.
-- [ ] IPv6 jest odrzucane przez CLI.
-- [ ] Port `0` jest odrzucany; `1-65535` działa.
-- [ ] CI przechodzi fmt, clippy i wszystkie testy.
-- [ ] README, `--help`, benchmarki i kod opisują te same zachowania.
+1. Odrzucenie portu `0` i testy granic parsera.
+2. `ParseError`, `ScanError`, `AppError` i kody wyjścia.
+3. Wspólny klasyfikator wyników TCP.
+4. Kontrolowane limity zasobów i stała pula workerów.
+5. Pełny probe oraz testy integracyjne `io_uring`.
+6. Porządek modułów, CI, dokumentacja i dopiero potem benchmarki.
+
+Jednocześnie realizujemy jeden mały krok, możliwy do zamknięcia wraz z testami w
+około godzinę. Szczegóły implementacji należą do rozmowy i testów, nie do roadmapy.
+
+## Definition of Done następnego wydania
+
+- [ ] Brak paniców i zawieszeń dla złego inputu, niskiego NOFILE i braku `io_uring`.
+- [ ] Port `0` i IPv6 są odrzucane; pełny zakres działa.
+- [ ] Oba backendy mają identyczną semantykę i posortowane wyniki.
+- [ ] Fallback zachodzi wyłącznie przed pierwszym connectem.
+- [ ] Domyślne CLI nie wymaga wiedzy o backendzie ani zasobach systemowych.
+- [ ] CI, README, `--help` i wszystkie testy są zgodne z wydaniem.

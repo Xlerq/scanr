@@ -27,9 +27,9 @@ impl ScanEngine for UringEngine {
         }
 
         let total_ports: u16 = ports.len() as u16;
-        let concurreency: u16 = get_concurrency(total_ports);
+        let concurrency: u16 = get_concurrency(total_ports);
 
-        let mut uring = IoUring::new((2 * concurreency) as u32).unwrap();
+        let mut uring = IoUring::new((2 * concurrency) as u32).unwrap();
         let timeout_spec = types::Timespec::from(timeout);
 
         let addrs: Vec<SockAddr> = ports
