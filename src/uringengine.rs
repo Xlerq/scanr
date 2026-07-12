@@ -43,7 +43,7 @@ impl ScanEngine for UringEngine {
         let mut results: Vec<(u16, TcpResult)> = Vec::with_capacity(total_ports as usize);
 
         while remaining > 0 {
-            while sockets.len() < concurreency as usize && next < total_ports as usize {
+            while sockets.len() < concurrency as usize && next < total_ports as usize {
                 let port = ports[next];
                 let socket = Socket::new(Domain::IPV4, Type::STREAM, None).unwrap();
                 let fd = socket.as_raw_fd();
