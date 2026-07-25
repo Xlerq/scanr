@@ -50,7 +50,7 @@ impl ScanSpeed {
         match self {
             ScanSpeed::Fast => Duration::from_millis(250),
             ScanSpeed::Normal => Duration::from_millis(500),
-            ScanSpeed::Thorough => Duration::from_millis(1000),
+            ScanSpeed::Thorough => Duration::from_millis(800),
         }
     }
 }
