@@ -1,4 +1,3 @@
-use std::cmp::min;
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::os::unix::io::AsRawFd;
