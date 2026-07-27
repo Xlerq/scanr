@@ -14,6 +14,9 @@ use crate::engine::{ScanEngine, ScanEvent, TcpResult};
 
 pub struct UringEngine;
 
+const FD_RESERVE: u64 = 64;
+const MAX_CONCURRENCY: u16 = 16_384;
+
 impl ScanEngine for UringEngine {
     fn scan(
         &self,
@@ -102,9 +105,31 @@ impl ScanEngine for UringEngine {
 }
 
 fn get_concurrency(total_ports: u16) -> u16 {
-    let soft = Resource::NOFILE.get().unwrap();
-    let syslimit = soft.0.saturating_sub(64);
+    let (soft, hard) = Resource::NOFILE.get().unwrap();
+    let target_soft = desired_soft_limit(total_ports, soft, hard);
+    let effective_soft = if target_soft > soft {
+        match Resource::NOFILE.set(target_soft, hard) {
+            Ok(()) => target_soft,
+            Err(_) => soft,
+        }
+    } else {
+        soft
+    };
 
-    let first_min: u16 = min(syslimit, total_ports as u64) as u16;
-    min(first_min, 16384).max(1)
+    let available = effective_soft.saturating_sub(FD_RESERVE);
+
+    let concurrency = u64::from(total_ports)
+        .min(available)
+        .min(u64::from(MAX_CONCURRENCY))
+        .max(1);
+
+    u16::try_from(concurrency).expect("concurrency is capped at MAX_CONCURRENCY")
+}
+
+fn desired_soft_limit(total_ports: u16, soft: u64, hard: u64) -> u64 {
+    let wanted_concurrency = total_ports.min(MAX_CONCURRENCY);
+    let required_soft = u64::from(wanted_concurrency) + FD_RESERVE;
+    let allowed_soft = required_soft.min(hard);
+
+    soft.max(allowed_soft)
 }
