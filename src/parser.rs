@@ -71,6 +71,7 @@ fn parse_ports(arg: &str) -> Result<Vec<u16>, String> {
     }
     ports.sort();
     ports.dedup();
+
     Ok(ports)
 }
 
@@ -95,6 +96,7 @@ fn parse_range(text: &str) -> Result<Vec<u16>, String> {
 
 fn parse_port(text: &str) -> Result<u16, String> {
     match text.trim().parse::<u16>() {
+        Ok(0) => Err("Error: port 0 is not allowed".to_string()),
         Ok(port) => Ok(port),
         Err(_) => Err("Error: port is not valid".to_string()),
     }
