@@ -6,7 +6,8 @@
 - Prosty interfejs dla osób nietechnicznych: cel, porty, `--speed` i format wyniku.
 - `UringEngine` jest głównym backendem; ograniczony `ThreadEngine` jest fallbackiem.
 - Poprawność wyniku ma pierwszeństwo przed szybkością.
-- Porty i ich liczba pozostają `u16`; dozwolony zakres to `1..=65535`.
+- Wartości portów pozostają `u16`, a liczby elementów i indeksy używają `usize`;
+  dozwolony zakres portów to `1..=65535`.
 
 ## Zamrożone decyzje
 
@@ -26,19 +27,22 @@
 - [x] Profile `fast`, `normal`, `thorough`.
 - [x] Format `table`, `json`, `csv` i nazwy usług.
 - [x] Automatyczny wybór `UringEngine` lub `ThreadEngine`.
-- [x] `UringEngine` podnosi soft `RLIMIT_NOFILE` dla własnego procesu, jeśli
-  pozwala na to hard limit.
+- [~] `UringEngine` podnosi soft `RLIMIT_NOFILE` dla własnego procesu i ma testy
+  polityki limitu, ale nie propaguje jeszcze błędów `getrlimit`/`setrlimit`.
 - [x] Aktualny screenshot pełnego skanu przez `UringEngine`.
 - [~] Backendy działają, ale nie mają jeszcze wspólnej semantyki błędów.
 - [~] Wybór `io_uring` nie sprawdza jeszcze wymaganych opcode.
 - [~] Discovery działa, ale wymaga poprawienia klasyfikacji błędów i puli workerów.
-- [ ] Port `0` nadal nie jest odrzucany i może zawiesić `UringEngine`.
+- [x] Port `0` jest odrzucany; parser testuje oba krańce i pełny zakres portów.
 
 ## P0 — poprawność i brak paniców
 
+Testy zachowania powstają razem z każdą zmianą P0. P1 obejmuje późniejsze testy
+przekrojowe i integracyjne, a nie odkładanie testowania bieżącej pracy.
+
 ### Wejście
 
-- [ ] Odrzuć port `0`; obsłuż poprawnie pełny zakres `1-65535`.
+- [x] Odrzuć port `0`; obsłuż poprawnie pełny zakres `1-65535`.
 - [ ] Dodaj typowane błędy portu, zakresu i CIDR.
 - [ ] Zapewnij kod wyjścia `2` dla błędnego wejścia, w tym IPv6.
 - [ ] Usuń niejawne i zawijające konwersje liczby portów.
@@ -54,7 +58,8 @@
 ### Zasoby i backendy
 
 - [x] Podnoś tylko soft `RLIMIT_NOFILE` procesu; nie zmieniaj hard limitu.
-- [ ] Zwróć kontrolowany błąd, gdy budżet FD jest zbyt mały.
+- [ ] Propaguj błędy odczytu/ustawienia limitu i zwróć kontrolowany błąd, gdy
+  budżet FD jest zbyt mały.
 - [ ] Zastąp masowe tworzenie wątków stałą pulą maksymalnie 512 workerów.
 - [ ] Sprawdzaj `Connect`, `LinkTimeout` i docelowy rozmiar ringa przed wyborem
   `UringEngine`.
@@ -67,7 +72,7 @@
 - [ ] Obsłuż broken pipe bez paniki i backtrace.
 - [ ] Sortuj wyniki i ustabilizuj schemat JSON/CSV.
 
-## P1 — czysty kod i testy
+## P1 — czysty kod, testy przekrojowe i CI
 
 - [ ] Rozdziel surowe argumenty, parser, konfigurację, silniki, CLI i output.
 - [ ] Przenieś aplikację do `lib.rs`; pozostaw w `main.rs` tylko exit code.
@@ -100,12 +105,13 @@
 
 ## Kolejność najbliższych prac
 
-1. Odrzucenie portu `0` i testy granic parsera.
-2. `ParseError`, `ScanError`, `AppError` i kody wyjścia.
-3. Wspólny klasyfikator wyników TCP.
-4. Kontrolowane limity zasobów i stała pula workerów.
-5. Pełny probe oraz testy integracyjne `io_uring`.
-6. Porządek modułów, CI, dokumentacja i dopiero potem benchmarki.
+1. [x] Odrzucenie portu `0` i testy granic parsera.
+2. `ParseError` i kod wyjścia `2` dla błędnego wejścia.
+3. `ScanError`, `AppError` i kod wyjścia `1` dla błędów wykonania.
+4. Wspólny klasyfikator wyników TCP.
+5. Kontrolowane limity zasobów i stała pula workerów.
+6. Pełny probe oraz testy integracyjne `io_uring`.
+7. Porządek modułów, CI, dokumentacja i dopiero potem benchmarki.
 
 Jednocześnie realizujemy jeden mały krok, możliwy do zamknięcia wraz z testami w
 około godzinę. Szczegóły implementacji należą do rozmowy i testów, nie do roadmapy.
