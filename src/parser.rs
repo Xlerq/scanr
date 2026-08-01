@@ -141,6 +141,39 @@ mod tests {
     }
 
     #[test]
+    fn accepts_lowest_valid_port() {
+        let ports = parse_ports("1").expect("parser should accept port 1");
+
+        assert_eq!(ports, vec![1]);
+    }
+
+    #[test]
+    fn accepts_highest_valid_port() {
+        let ports = parse_ports("65535").expect("parser should accept port 65535");
+
+        assert_eq!(ports, vec![u16::MAX]);
+    }
+
+    #[test]
+    fn rejects_port_zero() {
+        assert!(parse_ports("0").is_err());
+    }
+
+    #[test]
+    fn rejects_range_starting_at_zero() {
+        assert!(parse_ports("0-1").is_err());
+    }
+
+    #[test]
+    fn parses_full_valid_port_range() {
+        let ports = parse_ports("1-65535").expect("parser should accept the full port range");
+
+        assert_eq!(ports.len(), usize::from(u16::MAX));
+        assert_eq!(ports.first(), Some(&1));
+        assert_eq!(ports.last(), Some(&u16::MAX));
+    }
+
+    #[test]
     fn parses_port_range() {
         let ports = parse_ports("20-25").expect("parser should accept valid port range");
 

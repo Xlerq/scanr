@@ -132,3 +132,31 @@ fn desired_soft_limit(total_ports: u16, soft: u64, hard: u64) -> u64 {
 
     soft.max(allowed_soft)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn does_not_lower_existing_soft_limit() {
+        assert_eq!(desired_soft_limit(100, 1_024, 524_288), 1_024);
+    }
+
+    #[test]
+    fn requests_enough_fds_for_ports_and_reserve() {
+        assert_eq!(desired_soft_limit(1_000, 128, 4_096), 1_064);
+    }
+
+    #[test]
+    fn respects_hard_limit() {
+        assert_eq!(desired_soft_limit(1_000, 128, 512), 512);
+    }
+
+    #[test]
+    fn caps_requested_concurrency() {
+        assert_eq!(
+            desired_soft_limit(u16::MAX, 128, u64::MAX),
+            u64::from(MAX_CONCURRENCY) + FD_RESERVE
+        );
+    }
+}
